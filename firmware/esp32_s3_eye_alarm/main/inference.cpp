@@ -131,111 +131,104 @@ static esp_err_t preprocess_frame(
     long input_sum = 0;
 
     /*
-     * Nearest-neighbour resize:
-     *
-     * 320 x 240 → 48 x 48
-     *
-     * The destination layout is NHWC:
-     *
-     * R, G, B, R, G, B, ...
-     */
-    for (
-        int target_y = 0;
-        target_y < MODEL_HEIGHT;
-        ++target_y
-    ) {
-        const int source_y =
-            target_y
-            * CAMERA_HEIGHT
-            / MODEL_HEIGHT;
+ * Bilinear resize:
+ *
+ * 320 x 240 -> 48 x 48
+ *
+ * The destination layout is NHWC:
+ * R, G, B, R, G, B, ...
+ */
+for (int target_y = 0; target_y < MODEL_HEIGHT; ++target_y) {
 
-        for (
-            int target_x = 0;
-            target_x < MODEL_WIDTH;
-            ++target_x
-        ) {
-            const int source_x =
-                target_x
-                * CAMERA_WIDTH
-                / MODEL_WIDTH;
+    const float source_y =
+        (target_y + 0.5f)
+        * CAMERA_HEIGHT
+        / MODEL_HEIGHT
+        - 0.5f;
 
-            const int source_index =
-                (
-                    source_y
-                    * CAMERA_WIDTH
-                    + source_x
-                )
-                * MODEL_CHANNELS;
+    int y0 = static_cast<int>(std::floor(source_y));
+    int y1 = y0 + 1;
 
-            const int target_index =
-                (
-                    target_y
-                    * MODEL_WIDTH
-                    + target_x
-                )
-                * MODEL_CHANNELS;
+    const float wy = source_y - std::floor(source_y);
 
-            /*
-             * fmt2rgb888 returns the channels in BGR order
-             * on this camera conversion path.
-             *
-             * Convert them back to RGB before applying
-             * ImageNet normalization.
-             
-            const uint8_t blue =
-                rgb888[source_index + 0];
+    y0 = std::max(0, std::min(y0, CAMERA_HEIGHT - 1));
+    y1 = std::max(0, std::min(y1, CAMERA_HEIGHT - 1));
 
-            const uint8_t green =
-                rgb888[source_index + 1];
+    for (int target_x = 0; target_x < MODEL_WIDTH; ++target_x) {
 
-            const uint8_t red =
-                rgb888[source_index + 2];
+        const float source_x =
+            (target_x + 0.5f)
+            * CAMERA_WIDTH
+            / MODEL_WIDTH
+            - 0.5f;
 
-            const uint8_t rgb_pixel[3] = {
-                red,
-                green,
-                blue
-            };*/
+        int x0 = static_cast<int>(std::floor(source_x));
+        int x1 = x0 + 1;
 
-            for (
-                int channel = 0;
-                channel < MODEL_CHANNELS;
-                ++channel
-            ) {
-                const float pixel =
-                    rgb888[source_index + channel] / 255.0f;
+        const float wx = source_x - std::floor(source_x);
 
-                const float normalized =
-                    (
-                        pixel
-                        - IMAGENET_MEAN[channel]
-                    )
-                    / IMAGENET_STD[channel];
+        x0 = std::max(0, std::min(x0, CAMERA_WIDTH - 1));
+        x1 = std::max(0, std::min(x1, CAMERA_WIDTH - 1));
 
-                const int8_t quantized_value =
-                    dl::quantize<int8_t>(
-                        normalized,
-                        inverse_scale
-                    );
+        const int index00 =
+            (y0 * CAMERA_WIDTH + x0) * MODEL_CHANNELS;
 
-                input_data[
-                    target_index + channel
-                ] = quantized_value;
+        const int index01 =
+            (y0 * CAMERA_WIDTH + x1) * MODEL_CHANNELS;
 
-                minimum_value = std::min(
-                    minimum_value,
-                    static_cast<int>(quantized_value)
+        const int index10 =
+            (y1 * CAMERA_WIDTH + x0) * MODEL_CHANNELS;
+
+        const int index11 =
+            (y1 * CAMERA_WIDTH + x1) * MODEL_CHANNELS;
+
+        const int target_index =
+            (target_y * MODEL_WIDTH + target_x)
+            * MODEL_CHANNELS;
+
+        for (int channel = 0; channel < MODEL_CHANNELS; ++channel) {
+
+            const float top =
+                rgb888[index00 + channel] * (1.0f - wx)
+                + rgb888[index01 + channel] * wx;
+
+            const float bottom =
+                rgb888[index10 + channel] * (1.0f - wx)
+                + rgb888[index11 + channel] * wx;
+
+            const float resized_pixel =
+                top * (1.0f - wy)
+                + bottom * wy;
+
+            const float pixel = resized_pixel / 255.0f;
+
+            const float normalized =
+                (pixel - IMAGENET_MEAN[channel])
+                / IMAGENET_STD[channel];
+
+            const int8_t quantized_value =
+                dl::quantize<int8_t>(
+                    normalized,
+                    inverse_scale
                 );
 
-                maximum_value = std::max(
-                    maximum_value,
-                    static_cast<int>(quantized_value)
-                );
+            input_data[target_index + channel] =
+                quantized_value;
 
-                input_sum += quantized_value;
-            }
+            minimum_value = std::min(
+                minimum_value,
+                static_cast<int>(quantized_value)
+            );
+
+            maximum_value = std::max(
+                maximum_value,
+                static_cast<int>(quantized_value)
+            );
+
+            input_sum += quantized_value;
         }
     }
+}
 
     const int input_elements =
         MODEL_WIDTH

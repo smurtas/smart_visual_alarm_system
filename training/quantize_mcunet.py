@@ -1,6 +1,4 @@
 """
-File: training/quantize_mcunet.py
-
 Description:
 Load the trained PyTorch MCUNet checkpoint and quantize it directly
 to the ESP-DL INT8 format for ESP32-S3.
@@ -29,7 +27,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from train_mcu_net import MCUNet
+from train_mcunet import MCUNet
 
 
 # ---------------------------------------------------------------------------

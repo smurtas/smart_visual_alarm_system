@@ -1,6 +1,4 @@
 """
-File: training/compare_models.py
-
 Description:
 Compare the final MLP, MCUNet-style, and TinyViT-style models.
 

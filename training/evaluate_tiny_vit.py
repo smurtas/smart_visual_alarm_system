@@ -1,6 +1,4 @@
 """
-File: training/evaluate_tinyvit.py
-
 Description:
 Evaluate the trained TinyViT-style model on the test dataset.
 

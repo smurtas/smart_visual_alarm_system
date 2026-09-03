@@ -1,8 +1,0 @@
-{
-  "mqtt_broker": "localhost",
-  "mqtt_port": 1883,
-  "mqtt_topic": "mountain_house/alarm/events",
-  "telegram_bot_token": "PUT_YOUR_TOKEN_HERE",
-  "telegram_chat_id": "PUT_YOUR_CHAT_ID_HERE",
-  "log_file": "events.csv"
-}

@@ -1,28 +1,19 @@
 #include "http_upload.hpp"
 
-#include <cstring>
-
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "secrets.hpp"
 
 
 static const char *TAG = "HTTP_UPLOAD";
 
-static constexpr const char *UPLOAD_URL =
-    "http://192.168.1.129:5000/upload-alert";
 
 static constexpr int HTTP_TIMEOUT_MS = 15000;
 
 
-esp_err_t http_upload_frame(
-    const camera_fb_t *frame
-)
+esp_err_t http_upload_frame(const camera_fb_t *frame)
 {
-    if (
-        frame == nullptr
-        || frame->buf == nullptr
-        || frame->len == 0
-    ) {
+    if (frame == nullptr || frame->buf == nullptr || frame->len == 0) {
         ESP_LOGE(TAG, "Invalid camera frame");
         return ESP_ERR_INVALID_ARG;
     }
@@ -33,7 +24,6 @@ esp_err_t http_upload_frame(
             "Frame is not JPEG; format=%d",
             static_cast<int>(frame->format)
         );
-
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -76,12 +66,11 @@ esp_err_t http_upload_frame(
         return result;
     }
 
-    result =
-        esp_http_client_set_post_field(
-            client,
-            reinterpret_cast<const char *>(frame->buf),
-            static_cast<int>(frame->len)
-        );
+    result = esp_http_client_set_post_field(
+        client,
+        reinterpret_cast<const char *>(frame->buf),
+        static_cast<int>(frame->len)
+    );
 
     if (result != ESP_OK) {
         ESP_LOGE(
@@ -107,9 +96,7 @@ esp_err_t http_upload_frame(
         return result;
     }
 
-    const int status_code =
-        esp_http_client_get_status_code(client);
-
+    const int status_code = esp_http_client_get_status_code(client);
     const int64_t content_length =
         esp_http_client_get_content_length(client);
 
@@ -123,12 +110,7 @@ esp_err_t http_upload_frame(
     esp_http_client_cleanup(client);
 
     if (status_code != 201) {
-        ESP_LOGE(
-            TAG,
-            "Unexpected HTTP status: %d",
-            status_code
-        );
-
+        ESP_LOGE(TAG, "Unexpected HTTP status: %d", status_code);
         return ESP_FAIL;
     }
 

@@ -1,5 +1,4 @@
 """
-File: training/label_dataset.py
 Description:
 Display one image fron the raw dataset.
 

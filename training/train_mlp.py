@@ -1,6 +1,4 @@
 """
-File: training/train_mlp.py
-
 Description:
 Train a simple multilayer perceptron baseline for image classification.
 """
@@ -43,7 +41,7 @@ class MLPClassifier(nn.Module):
     def __init__(self, num_classes: int) -> None:
         super().__init__()
 
-        input_features = 3 * 48 * 48 # 3 channels, 48x48 pixels, changed from 96x96 to 48x48 for faster training
+        input_features = 3 * IMAGE_SIZE * IMAGE_SIZE # 3 channels, 48x48 pixels, changed from 96x96 to 48x48 for faster training
 
         self.network = nn.Sequential(
             nn.Flatten(),

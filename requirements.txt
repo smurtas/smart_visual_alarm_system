@@ -8,5 +8,4 @@ timm
 opencv-python
 pillow
 pyyaml
-paho-mqtt
-python-telegram-bot
+flask

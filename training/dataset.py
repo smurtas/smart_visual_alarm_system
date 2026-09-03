@@ -1,6 +1,4 @@
 """
-File: training/dataset.py
-
 Description:
 Create PyTorch datasets and data loaders for training, validation, and test.
 """
@@ -18,7 +16,7 @@ from augmentation import train_transform, evaluation_transform
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATASET_DIR = PROJECT_ROOT / "dataset" / "training"
+DATASET_DIR = PROJECT_ROOT / "dataset" 
 
 BATCH_SIZE = 16
 NUM_WORKERS = 0

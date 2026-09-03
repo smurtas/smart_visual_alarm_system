@@ -1,6 +1,4 @@
 """
-File: training/check_dark_images.py
-
 Description:
 Find images that are completely black or extremely dark.
 

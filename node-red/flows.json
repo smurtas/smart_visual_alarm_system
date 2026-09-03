@@ -1,0 +1,667 @@
+[
+    {
+        "id": "7da4aa3df36a453a",
+        "type": "tab",
+        "label": "Smart-Visual-Alarm-System",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "e8cfb62b6914c6e5",
+        "type": "mqtt in",
+        "z": "7da4aa3df36a453a",
+        "name": "",
+        "topic": "smartalarm/prediction",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "49980c43aa40e3e8",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 220,
+        "y": 320,
+        "wires": [
+            [
+                "303e5e6dfcc21615",
+                "9714e49b2851e543"
+            ]
+        ]
+    },
+    {
+        "id": "303e5e6dfcc21615",
+        "type": "debug",
+        "z": "7da4aa3df36a453a",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 800,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "46a66187e7bed369",
+        "type": "telegram sender",
+        "z": "7da4aa3df36a453a",
+        "name": "",
+        "bot": "bd03ef4e974a3959",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 930,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "75b60628bdf374f0",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "person photo",
+        "func": "const data =\n    typeof msg.payload === \"string\"\n        ? JSON.parse(msg.payload)\n        : msg.payload;\n\nif (data.class !== \"person\") {\n    return null;\n}\n\nconst confidence = Math.round(data.confidence * 100);\n\nmsg.payload = {\n    chatId: \"YOUR_CHAT_ID\",\n    type: \"photo\",\n    content: \"/home/pi/Desktop/Smart-Visual-Alarm-System/runtime/images/latest.jpg\",\n    caption: \n        `🚨 Person detected\\n` +\n        `Confidence: ${confidence}%\\n` +\n        `Time: ${new Date().toLocaleString(\"it-IT\")}`\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 440,
+        "wires": [
+            [
+                "46a66187e7bed369"
+            ]
+        ]
+    },
+    {
+        "id": "c186a0caa54690ba",
+        "type": "switch",
+        "z": "7da4aa3df36a453a",
+        "name": "Classifier",
+        "property": "payload.class",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "person",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "animal",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "empty",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 420,
+        "y": 480,
+        "wires": [
+            [
+                "75b60628bdf374f0",
+                "cda7083b48d1eeea"
+            ],
+            [
+                "2c6a8c175da59e6a",
+                "cda7083b48d1eeea"
+            ],
+            [
+                "303e5e6dfcc21615",
+                "cda7083b48d1eeea"
+            ]
+        ]
+    },
+    {
+        "id": "2c6a8c175da59e6a",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "animal photo",
+        "func": "const data =\n    typeof msg.payload === \"string\"\n        ? JSON.parse(msg.payload)\n        : msg.payload;\n\nif (data.class !== \"animal\") {\n    return null;\n}\n\nconst confidence = Math.round(data.confidence * 100);\n\nmsg.payload = {\n    chatId: \"YOUR_CHAT_ID\",\n    type: \"photo\",\n    content: \"/home/pi/Desktop/Smart-Visual-Alarm-System/runtime/images/latest.jpg\",    caption: \n    `🐾 Animal detected\\n` +        \n    `Confidence: ${confidence}%\\n` +\n    `Time: ${new Date().toLocaleString(\"it-IT\")}`\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 560,
+        "wires": [
+            [
+                "46a66187e7bed369"
+            ]
+        ]
+    },
+    {
+        "id": "9714e49b2851e543",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "timestamp",
+        "func": "\nconst data = \n    typeof msg.payload === \"string\"\n    ? JSON.parse(msg.payload)\n    : msg.payload;\n\ndata.timestamp = new Date().toISOString();\n\nmsg.payload = data;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 340,
+        "wires": [
+            [
+                "c186a0caa54690ba",
+                "6e458d9c0be0f250",
+                "f488860a3f31394d",
+                "8ff667e0f1bb953d",
+                "c3ca1da0505ff9c7",
+                "830d6936fe585f37"
+            ]
+        ]
+    },
+    {
+        "id": "cda7083b48d1eeea",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "write in csv",
+        "func": "const data = msg.payload;\n\nmsg.payload = \n    `${data.timestamp},` +\n    `${data.class},` +\n    `${data.confidence}`\n    \nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 640,
+        "wires": [
+            [
+                "4656fae279104647"
+            ]
+        ]
+    },
+    {
+        "id": "4656fae279104647",
+        "type": "file",
+        "z": "7da4aa3df36a453a",
+        "name": "records ",
+        "filename": "/home/pi/Desktop/Smart-Visual-Alarm-System/runtime/events.csv",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": false,
+        "overwriteFile": "false",
+        "encoding": "none",
+        "x": 640,
+        "y": 640,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6a9b1d0973d82797",
+        "type": "ui-gauge",
+        "z": "7da4aa3df36a453a",
+        "name": "Confidence Gauge",
+        "group": "65edccbfdccec540",
+        "order": 0,
+        "value": "payload",
+        "valueType": "msg",
+        "width": 3,
+        "height": 3,
+        "gtype": "gauge-half",
+        "gstyle": "needle",
+        "title": "Confidence",
+        "alwaysShowTitle": false,
+        "floatingTitlePosition": "top-left",
+        "units": "%",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "0",
+                "color": "#e01b24",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "60",
+                "color": "#ffc800",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "85",
+                "color": "#5cd65c",
+                "text": "",
+                "textType": "label"
+            }
+        ],
+        "min": 0,
+        "max": "100",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 450,
+        "y": 840,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1cdc6cbd42122b81",
+        "type": "ui-chart",
+        "z": "7da4aa3df36a453a",
+        "group": "5b698bbbc7722c25",
+        "name": "Confidence History",
+        "label": "Confidence over time",
+        "order": 9007199254740991,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "Time",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "auto",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "0",
+        "ymax": "100",
+        "bins": 10,
+        "action": "append",
+        "stackSeries": false,
+        "pointShape": "circle",
+        "pointRadius": 4,
+        "showLegend": true,
+        "removeOlder": 1,
+        "removeOlderUnit": "3600",
+        "removeOlderPoints": "",
+        "colors": [
+            "#0095ff",
+            "#ff0000",
+            "#ff7f0e",
+            "#2ca02c",
+            "#a347e1",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": 6,
+        "height": 8,
+        "className": "",
+        "interpolation": "linear",
+        "x": 450,
+        "y": 920,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "998121e5da76a1b6",
+        "type": "ui-text",
+        "z": "7da4aa3df36a453a",
+        "group": "65edccbfdccec540",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "Detect Class",
+        "label": "Last detected class",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "value": "payload",
+        "valueType": "msg",
+        "x": 430,
+        "y": 760,
+        "wires": []
+    },
+    {
+        "id": "6e458d9c0be0f250",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "payload class",
+        "func": "const data =\n    typeof msg.payload === \"string\"\n    ? JSON.parse(msg.payload)\n    : msg.payload;\n\nmsg.payload = data.class;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 160,
+        "y": 540,
+        "wires": [
+            [
+                "998121e5da76a1b6"
+            ]
+        ]
+    },
+    {
+        "id": "f488860a3f31394d",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "Confidence",
+        "func": "const data =\n    typeof msg.payload === \"string\"\n    ? JSON.parse(msg.payload)\n    : msg.payload;\n\nmsg.payload = Math.round(data.confidence *100);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 170,
+        "y": 720,
+        "wires": [
+            [
+                "6a9b1d0973d82797"
+            ]
+        ]
+    },
+    {
+        "id": "8ff667e0f1bb953d",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "Function chart",
+        "func": "const data = \n    typeof msg.payload === \"string\"\n    ? JSON.parse(msg.payload)\n    : msg.payload;\n\n    msg.topic = data.class;\n    msg.payload = Math.round(data.confidence * 100);\n    \nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 180,
+        "y": 840,
+        "wires": [
+            [
+                "1cdc6cbd42122b81"
+            ]
+        ]
+    },
+    {
+        "id": "b326c9982b9de9c3",
+        "type": "ui-text",
+        "z": "7da4aa3df36a453a",
+        "group": "65edccbfdccec540",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "Last Detection Time",
+        "label": "Last detection time",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "value": "payload",
+        "valueType": "msg",
+        "x": 480,
+        "y": 1000,
+        "wires": []
+    },
+    {
+        "id": "c3ca1da0505ff9c7",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "Orario",
+        "func": "const data = msg.payload;\n\nmsg.payload = new Date(\n    data.timestamp\n).toLocaleString(\"it-IT\");\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 150,
+        "y": 920,
+        "wires": [
+            [
+                "b326c9982b9de9c3"
+            ]
+        ]
+    },
+    {
+        "id": "830d6936fe585f37",
+        "type": "function",
+        "z": "7da4aa3df36a453a",
+        "name": "Event counter",
+        "func": "const data = msg.payload;\n\n// no counter for empty \nif (data.class === \"empty\"){\n    return null;\n}\n\nlet count = context.get(\"eventCount\") || 0;\n\ncount += 1;\ncontext.set(\"eventCount\", count);\nmsg.payload = count;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 220,
+        "wires": [
+            [
+                "8389dae8d7c9c655"
+            ]
+        ]
+    },
+    {
+        "id": "8389dae8d7c9c655",
+        "type": "ui-text",
+        "z": "7da4aa3df36a453a",
+        "group": "65edccbfdccec540",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "Counter",
+        "label": "Events detected ",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "value": "payload",
+        "valueType": "msg",
+        "x": 640,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "49980c43aa40e3e8",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "localhost",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "bd03ef4e974a3959",
+        "type": "telegram bot",
+        "botname": "Smart Visual Alarm",
+        "usernames": "",
+        "chatids": "",
+        "baseapiurl": "",
+        "testenvironment": false,
+        "updatemode": "polling",
+        "pollinterval": 300,
+        "usesocks": false,
+        "sockshost": "",
+        "socksprotocol": "socks5",
+        "socksport": 6667,
+        "socksusername": "anonymous",
+        "sockspassword": "",
+        "bothost": "",
+        "botpath": "",
+        "localbothost": "0.0.0.0",
+        "localbotport": 8443,
+        "publicbotport": 8443,
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "sslterminated": false,
+        "verboselogging": false
+    },
+    {
+        "id": "65edccbfdccec540",
+        "type": "ui-group",
+        "name": "Live Status",
+        "page": "3b05f88672781bd5",
+        "width": 6,
+        "height": 1,
+        "order": 2,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "5b698bbbc7722c25",
+        "type": "ui-group",
+        "name": "History",
+        "page": "3b05f88672781bd5",
+        "width": 6,
+        "height": 1,
+        "order": -1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "3b05f88672781bd5",
+        "type": "ui-page",
+        "name": "Smart Visual Alarm",
+        "ui": "fec8b6a135ff55e3",
+        "path": "/smart-alarm",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "d5c8c198f00e7dd4",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "fec8b6a135ff55e3",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "d5c8c198f00e7dd4",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094CE",
+            "bgPage": "#eeeeee",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "4d77fe626aa8aa4c",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-telegrambot": "18.1.1",
+            "@flowfuse/node-red-dashboard": "1.30.2"
+        }
+    }
+]

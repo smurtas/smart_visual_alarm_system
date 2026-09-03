@@ -1,11 +1,11 @@
 #include "camera.hpp"
 
-
 #include "esp_log.h"
+
 
 static const char *TAG = "CAMERA";
 
-// ESP32-S3-EYE official camera pin mapping.
+// ESP32-S3-EYE camera pins
 static constexpr int CAM_PIN_XCLK  = 15;
 static constexpr int CAM_PIN_SIOD  = 4;
 static constexpr int CAM_PIN_SIOC  = 5;
@@ -22,6 +22,7 @@ static constexpr int CAM_PIN_D7    = 16;
 static constexpr int CAM_PIN_VSYNC = 6;
 static constexpr int CAM_PIN_HREF  = 7;
 static constexpr int CAM_PIN_PCLK  = 13;
+
 
 esp_err_t camera_init()
 {
@@ -52,10 +53,9 @@ esp_err_t camera_init()
 
     config.xclk_freq_hz = 16000000;
 
-    // JPEG is useful later for HTTP upload.
     config.pixel_format = PIXFORMAT_JPEG;
 
-    // Small frame for the first test.
+    // QVGA keeps memory and processing requirements low.
     config.frame_size = FRAMESIZE_QVGA;  // 320 x 240
     config.jpeg_quality = 12;
     config.fb_count = 1;
@@ -79,7 +79,7 @@ esp_err_t camera_init()
     sensor_t *sensor = esp_camera_sensor_get();
 
     if (sensor != nullptr) {
-        // Official BSP uses vertical flip for this board.
+        // Required orientation for the ESP32-S3-EYE camera.
         sensor->set_vflip(sensor, 1);
         sensor->set_hmirror(sensor, 0);
     }
@@ -88,6 +88,7 @@ esp_err_t camera_init()
 
     return ESP_OK;
 }
+
 
 camera_fb_t *camera_capture()
 {
@@ -109,6 +110,7 @@ camera_fb_t *camera_capture()
 
     return frame;
 }
+
 
 void camera_release(camera_fb_t *frame)
 {

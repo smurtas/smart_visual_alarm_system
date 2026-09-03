@@ -4,70 +4,41 @@
 
 #include "esp_log.h"
 #include "mqtt_client.h"
-
+#include "secrets.hpp"
 
 static const char *TAG = "MQTT";
 
-static constexpr const char *MQTT_BROKER_URI =
-    "mqtt://192.168.1.129:1883";
 
-static constexpr const char *MQTT_TOPIC =
-    "smartalarm/prediction";
+static constexpr const char *MQTT_TOPIC = "smartalarm/prediction";
 
 static esp_mqtt_client_handle_t mqtt_client = nullptr;
 static bool connected = false;
 
 
-static void mqtt_event_handler(
-    void *handler_args,
-    esp_event_base_t event_base,
-    int32_t event_id,
-    void *event_data
-)
-{
-    const auto event =
-        static_cast<esp_mqtt_event_handle_t>(
-            event_data
-        );
+static void mqtt_event_handler(void *handler_args, esp_event_base_t event_base, int32_t event_id, void *event_data){
+    const auto event = static_cast<esp_mqtt_event_handle_t>(event_data);
 
-    switch (
-        static_cast<esp_mqtt_event_id_t>(
-            event_id
-        )
-    ) {
+    switch (static_cast<esp_mqtt_event_id_t>(event_id)) {
         case MQTT_EVENT_CONNECTED:
             connected = true;
 
-            ESP_LOGI(
-                TAG,
-                "Connected to broker"
-            );
+            ESP_LOGI(TAG,"Connected to broker");
             break;
 
         case MQTT_EVENT_DISCONNECTED:
             connected = false;
 
-            ESP_LOGW(
-                TAG,
-                "Disconnected from broker"
-            );
+            ESP_LOGW(TAG,"Disconnected from broker");
             break;
 
         case MQTT_EVENT_PUBLISHED:
-            ESP_LOGD(
-                TAG,
-                "Message published, id=%d",
-                event->msg_id
-            );
+            ESP_LOGD( TAG, "Message published, id=%d", event->msg_id);
             break;
 
         case MQTT_EVENT_ERROR:
             connected = false;
 
-            ESP_LOGE(
-                TAG,
-                "MQTT transport error"
-            );
+            ESP_LOGE(TAG, "MQTT transport error");
             break;
 
         default:
@@ -82,10 +53,7 @@ esp_err_t mqtt_init()
         return ESP_OK;
     }
 
-    ESP_LOGI(
-        TAG,
-        "Initializing MQTT client"
-    );
+    ESP_LOGI(TAG,"Initializing MQTT client");
 
     const esp_mqtt_client_config_t configuration = {
         .broker = {
@@ -102,16 +70,10 @@ esp_err_t mqtt_init()
         }
     };
 
-    mqtt_client =
-        esp_mqtt_client_init(
-            &configuration
-        );
+    mqtt_client = esp_mqtt_client_init(&configuration);
 
     if (mqtt_client == nullptr) {
-        ESP_LOGE(
-            TAG,
-            "MQTT client allocation failed"
-        );
+        ESP_LOGE(TAG, "MQTT client allocation failed");
 
         return ESP_ERR_NO_MEM;
     }
@@ -125,15 +87,9 @@ esp_err_t mqtt_init()
         );
 
     if (result != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "Event registration failed: %s",
-            esp_err_to_name(result)
-        );
+        ESP_LOGE(TAG,"Event registration failed: %s", esp_err_to_name(result));
 
-        esp_mqtt_client_destroy(
-            mqtt_client
-        );
+        esp_mqtt_client_destroy(mqtt_client);
 
         mqtt_client = nullptr;
 
@@ -141,30 +97,19 @@ esp_err_t mqtt_init()
     }
 
     result =
-        esp_mqtt_client_start(
-            mqtt_client
-        );
+        esp_mqtt_client_start(mqtt_client);
 
     if (result != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "MQTT client start failed: %s",
-            esp_err_to_name(result)
-        );
+        ESP_LOGE( TAG, "MQTT client start failed: %s", esp_err_to_name(result));
 
-        esp_mqtt_client_destroy(
-            mqtt_client
-        );
+        esp_mqtt_client_destroy(mqtt_client);
 
         mqtt_client = nullptr;
 
         return result;
     }
 
-    ESP_LOGI(
-        TAG,
-        "MQTT client started"
-    );
+    ESP_LOGI(TAG,"MQTT client started");
 
     return ESP_OK;
 }
@@ -185,10 +130,7 @@ esp_err_t mqtt_publish_prediction(
         mqtt_client == nullptr
         || !connected
     ) {
-        ESP_LOGW(
-            TAG,
-            "Prediction not published: broker unavailable"
-        );
+        ESP_LOGW(TAG,"Prediction not published: broker unavailable");
 
         return ESP_ERR_INVALID_STATE;
     }
@@ -216,10 +158,7 @@ esp_err_t mqtt_publish_prediction(
             sizeof(payload)
         )
     ) {
-        ESP_LOGE(
-            TAG,
-            "MQTT payload generation failed"
-        );
+        ESP_LOGE(TAG,"MQTT payload generation failed");
 
         return ESP_ERR_INVALID_SIZE;
     }
@@ -235,19 +174,12 @@ esp_err_t mqtt_publish_prediction(
         );
 
     if (message_id < 0) {
-        ESP_LOGE(
-            TAG,
-            "Prediction publish failed"
-        );
+        ESP_LOGE(TAG, "Prediction publish failed");
 
         return ESP_FAIL;
     }
 
-    ESP_LOGI(
-        TAG,
-        "Published: %s",
-        payload
-    );
+    ESP_LOGI(TAG, "Published: %s",payload);
 
     return ESP_OK;
 }

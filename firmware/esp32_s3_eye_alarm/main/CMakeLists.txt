@@ -1,21 +1,12 @@
-idf_build_get_property(
-    component_targets
-    __COMPONENT_TARGETS
-)
+idf_build_get_property(component_targets __COMPONENT_TARGETS)
 
-if (
-    "___idf_espressif__esp-dl"
-    IN_LIST component_targets
-)
+if ("___idf_espressif__esp-dl" IN_LIST component_targets)
     idf_component_get_property(
         espdl_dir
         espressif__esp-dl
         COMPONENT_DIR
     )
-elseif (
-    "___idf_esp-dl"
-    IN_LIST component_targets
-)
+elseif ("___idf_esp-dl" IN_LIST component_targets)
     idf_component_get_property(
         espdl_dir
         esp-dl
@@ -23,19 +14,10 @@ elseif (
     )
 endif()
 
-set(
-    cmake_dir
-    ${espdl_dir}/fbs_loader/cmake
-)
+set(cmake_dir ${espdl_dir}/fbs_loader/cmake)
+include(${cmake_dir}/utilities.cmake)
 
-include(
-    ${cmake_dir}/utilities.cmake
-)
-
-set(
-    embed_files
-    model/mcunet_int8.espdl
-)
+set(embed_files model/mcunet_int8.espdl)
 
 idf_component_register(
     SRCS
@@ -45,8 +27,7 @@ idf_component_register(
         "wifi.cpp"
         "mqtt.cpp"
         "http_upload.cpp"
-    INCLUDE_DIRS
-        "."
+    INCLUDE_DIRS "."
     REQUIRES
         esp-dl
         esp32-camera

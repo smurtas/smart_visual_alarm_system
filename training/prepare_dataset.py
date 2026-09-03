@@ -1,6 +1,4 @@
 """
-File: training/prepare_dataset.py
-
 Description:
 Create stratified train, validation, and test splits from the raw dataset.
 
@@ -38,8 +36,8 @@ import sys # library for system-specific parameters and functions
 # DIRECTORY ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-SOURCE_DIR = PROJECT_ROOT / "dataset" / "raw"
-DESTINATION_DIR = PROJECT_ROOT / "dataset" / "training"
+SOURCE_DIR = PROJECT_ROOT / "dataset" 
+DESTINATION_DIR = PROJECT_ROOT / "dataset" 
 
 CLASSES = ["empty", "person", "animal"]
 
@@ -56,9 +54,9 @@ RANDOM_SEED = 42
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
-# "move" removes files from dataset/raw.
+# "move" removes files from dataset
 # Use "copy" to preserve the original files.
-OPERATION = "move"
+OPERATION = "copy"
 
 #-------------------------------------------
 # UTILITY FUNCTIONS

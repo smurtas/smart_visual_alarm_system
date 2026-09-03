@@ -1,6 +1,6 @@
 """
 Description:
-Evaluate the trained MLP model on the test dataset.
+Evaluate the trained MCUNet-style model on the test dataset.
 
 The script calculates:
 - test loss;
@@ -9,10 +9,10 @@ The script calculates:
 - macro and weighted averages;
 - confusion matrix;
 - number of trainable parameters;
-- model file size;
+- model checkpoint size;
 - average inference time.
 
-It also saves the confusion matrix inside results/mlp/.
+The results are saved inside results/mcunet/.
 """
 
 from pathlib import Path
@@ -29,6 +29,7 @@ from sklearn.metrics import (
 from torch import nn
 
 from dataset import get_dataloaders
+from train_mcunet import MCUNet
 
 
 # ---------------------------------------------------------------------------
@@ -36,49 +37,17 @@ from dataset import get_dataloaders
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = PROJECT_ROOT / "results" / "mlp"
 
-# Use the checkpoint created by the second experiment.
-MODEL_PATH = RESULTS_DIR / "best_mlp_v2.pt"
+RESULTS_DIR = PROJECT_ROOT / "results" / "mcunet"
+MODEL_PATH = RESULTS_DIR / "best_mcunet.pt"
 
-CONFUSION_MATRIX_PATH = RESULTS_DIR / "confusion_matrix_mlp.png"
-REPORT_PATH = RESULTS_DIR / "classification_report_mlp.txt"
+CONFUSION_MATRIX_PATH = (
+    RESULTS_DIR / "confusion_matrix_mcunet.png"
+)
 
-IMAGE_SIZE = 48
-
-
-# ---------------------------------------------------------------------------
-# Model
-# ---------------------------------------------------------------------------
-
-class MLPClassifier(nn.Module):
-    """MLP baseline for 48 x 48 RGB images."""
-
-    def __init__(self, num_classes: int) -> None:
-        super().__init__()
-
-        input_features = 3 * IMAGE_SIZE * IMAGE_SIZE
-
-        self.network = nn.Sequential(
-            nn.Flatten(),
-
-            nn.Linear(input_features, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.20),
-
-            nn.Linear(128, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.10),
-
-            nn.Linear(32, num_classes),
-        )
-
-    def forward(self, images: torch.Tensor) -> torch.Tensor:
-        """Return classification logits."""
-
-        return self.network(images)
+REPORT_PATH = (
+    RESULTS_DIR / "classification_report_mcunet.txt"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -86,10 +55,13 @@ class MLPClassifier(nn.Module):
 # ---------------------------------------------------------------------------
 
 def select_device() -> torch.device:
-    """Select Apple MPS when available, otherwise use the CPU."""
+    """Select MPS, CUDA, or CPU."""
 
     if torch.backends.mps.is_available():
         return torch.device("mps")
+
+    if torch.cuda.is_available():
+        return torch.device("cuda")
 
     return torch.device("cpu")
 
@@ -104,11 +76,27 @@ def count_trainable_parameters(model: nn.Module) -> int:
     )
 
 
-def calculate_model_size_megabytes(model_path: Path) -> float:
+def calculate_model_size_megabytes(
+    model_path: Path,
+) -> float:
     """Return the checkpoint size in megabytes."""
 
     return model_path.stat().st_size / (1024 ** 2)
 
+
+def synchronize_device(device: torch.device) -> None:
+    """Synchronize the selected accelerator."""
+
+    if device.type == "mps":
+        torch.mps.synchronize()
+
+    elif device.type == "cuda":
+        torch.cuda.synchronize()
+
+
+# ---------------------------------------------------------------------------
+# Evaluation
+# ---------------------------------------------------------------------------
 
 def evaluate_model(
     model: nn.Module,
@@ -130,37 +118,36 @@ def evaluate_model(
 
     total_loss = 0.0
     total_samples = 0
-
-    true_labels = []
-    predicted_labels = []
-
     total_inference_time = 0.0
+
+    true_labels: list[int] = []
+    predicted_labels: list[int] = []
 
     with torch.no_grad():
         for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
 
-            # Synchronize MPS before measuring elapsed time.
-            if device.type == "mps":
-                torch.mps.synchronize()
+            synchronize_device(device)
 
             start_time = time.perf_counter()
 
             logits = model(images)
 
-            if device.type == "mps":
-                torch.mps.synchronize()
+            synchronize_device(device)
 
             end_time = time.perf_counter()
 
-            batch_inference_time = end_time - start_time
-            total_inference_time += batch_inference_time
+            total_inference_time += (
+                end_time - start_time
+            )
 
             loss = criterion(logits, labels)
 
-            total_loss += loss.item() * images.size(0)
-            total_samples += labels.size(0)
+            batch_size = images.size(0)
+
+            total_loss += loss.item() * batch_size
+            total_samples += batch_size
 
             predictions = logits.argmax(dim=1)
 
@@ -174,7 +161,7 @@ def evaluate_model(
 
     average_loss = total_loss / total_samples
 
-    average_time_per_image_ms = (
+    average_inference_time_ms = (
         total_inference_time / total_samples
     ) * 1000
 
@@ -182,9 +169,13 @@ def evaluate_model(
         average_loss,
         true_labels,
         predicted_labels,
-        average_time_per_image_ms,
+        average_inference_time_ms,
     )
 
+
+# ---------------------------------------------------------------------------
+# Confusion matrix
+# ---------------------------------------------------------------------------
 
 def save_confusion_matrix(
     true_labels: list[int],
@@ -204,7 +195,9 @@ def save_confusion_matrix(
         display_labels=class_names,
     )
 
-    figure, axis = plt.subplots(figsize=(7, 6))
+    figure, axis = plt.subplots(
+        figsize=(7, 6)
+    )
 
     display.plot(
         ax=axis,
@@ -213,9 +206,12 @@ def save_confusion_matrix(
         colorbar=False,
     )
 
-    axis.set_title("MLP confusion matrix")
+    axis.set_title(
+        "MCUNet-style confusion matrix"
+    )
 
     figure.tight_layout()
+
     figure.savefig(
         CONFUSION_MATRIX_PATH,
         dpi=300,
@@ -226,16 +222,21 @@ def save_confusion_matrix(
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Main procedure
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    """Evaluate the best MLP checkpoint."""
+    """Evaluate the best MCUNet checkpoint."""
 
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
             f"Model checkpoint not found: {MODEL_PATH}"
         )
+
+    RESULTS_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     (
         _,
@@ -256,8 +257,36 @@ def main() -> None:
         dataset_class_names,
     )
 
-    model = MLPClassifier(
-        num_classes=len(class_names)
+    dropout = checkpoint.get(
+        "dropout",
+        0.20,
+    )
+
+    image_size = checkpoint.get(
+        "image_size",
+        48,
+    )
+
+    sample_images, _ = next(
+        iter(test_loader)
+    )
+
+    returned_size = sample_images.shape[2:]
+
+    if returned_size != (
+        image_size,
+        image_size,
+    ):
+        raise ValueError(
+            "Incorrect test image size. "
+            f"Checkpoint expects {image_size} x {image_size}, "
+            f"but the DataLoader returned "
+            f"{returned_size[0]} x {returned_size[1]}."
+        )
+
+    model = MCUNet(
+        num_classes=len(class_names),
+        dropout=dropout,
     ).to(device)
 
     model.load_state_dict(
@@ -291,21 +320,35 @@ def main() -> None:
         zero_division=0,
     )
 
-    trainable_parameters = count_trainable_parameters(model)
-    model_size_mb = calculate_model_size_megabytes(MODEL_PATH)
+    trainable_parameters = (
+        count_trainable_parameters(model)
+    )
 
-    print("\nMLP evaluation")
+    model_size_mb = (
+        calculate_model_size_megabytes(
+            MODEL_PATH
+        )
+    )
+
+    print("\nMCUNet-style evaluation")
     print("=" * 60)
     print(f"Device: {device}")
     print(f"Checkpoint: {MODEL_PATH}")
     print(f"Classes: {class_names}")
+    print(f"Input size: {image_size} x {image_size}")
 
     print("\nOverall metrics")
     print("-" * 60)
     print(f"Test loss: {test_loss:.4f}")
     print(f"Test accuracy: {accuracy:.4f}")
-    print(f"Trainable parameters: {trainable_parameters:,}")
-    print(f"Checkpoint size: {model_size_mb:.2f} MB")
+    print(
+        f"Trainable parameters: "
+        f"{trainable_parameters:,}"
+    )
+    print(
+        f"Checkpoint size: "
+        f"{model_size_mb:.2f} MB"
+    )
     print(
         "Average inference time per image: "
         f"{average_inference_time_ms:.3f} ms"
@@ -315,24 +358,32 @@ def main() -> None:
     print("-" * 60)
     print(report)
 
+    report_content = (
+        "MCUNet-style evaluation\n"
+        + "=" * 60
+        + "\n"
+        + f"Test loss: {test_loss:.4f}\n"
+        + f"Test accuracy: {accuracy:.4f}\n"
+        + (
+            "Trainable parameters: "
+            f"{trainable_parameters:,}\n"
+        )
+        + (
+            "Checkpoint size: "
+            f"{model_size_mb:.2f} MB\n"
+        )
+        + (
+            "Average inference time per image: "
+            f"{average_inference_time_ms:.3f} ms\n\n"
+        )
+        + "Classification report\n"
+        + "-" * 60
+        + "\n"
+        + report
+    )
+
     REPORT_PATH.write_text(
-        (
-            "MLP evaluation\n"
-            "=" * 60
-            + "\n"
-            + f"Test loss: {test_loss:.4f}\n"
-            + f"Test accuracy: {accuracy:.4f}\n"
-            + f"Trainable parameters: {trainable_parameters:,}\n"
-            + f"Checkpoint size: {model_size_mb:.2f} MB\n"
-            + (
-                "Average inference time per image: "
-                f"{average_inference_time_ms:.3f} ms\n\n"
-            )
-            + "Classification report\n"
-            + "-" * 60
-            + "\n"
-            + report
-        ),
+        report_content,
         encoding="utf-8",
     )
 
@@ -345,7 +396,10 @@ def main() -> None:
     print("\nSaved results")
     print("-" * 60)
     print(f"Report: {REPORT_PATH}")
-    print(f"Confusion matrix: {CONFUSION_MATRIX_PATH}")
+    print(
+        f"Confusion matrix: "
+        f"{CONFUSION_MATRIX_PATH}"
+    )
 
 
 if __name__ == "__main__":

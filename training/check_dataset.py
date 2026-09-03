@@ -1,6 +1,4 @@
 """
-File: training/check_dataset.py
-
 Description:
 Validate the train, validation, and test dataset structure.
 The script checks image counts, unreadable files, and duplicate file hashes.
@@ -14,10 +12,10 @@ from PIL import Image, UnidentifiedImageError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATASET_DIR = PROJECT_ROOT / "dataset" / "training"
+DATASET_DIR = PROJECT_ROOT / "dataset" 
 
 SPLITS = ["train", "val", "test"]
-CLASSES = ["empty", "person", "animal"]
+CLASSES = ["animal", "empty", "person"]
 
 SUPPORTED_EXTENSIONS = {
     ".jpg",

@@ -16,85 +16,53 @@ static constexpr int INFERENCE_INTERVAL_MS = 2000;
 
 extern "C" void app_main(void)
 {
-    ESP_LOGI(
-        TAG,
-        "Starting Smart Visual Alarm"
-    );
+    ESP_LOGI(TAG,"Starting Smart Visual Alarm");
 
     if (camera_init() != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "Camera initialization failed"
-        );
+        ESP_LOGE(TAG,"Camera initialization failed");
 
         return;
     }
 
     if (inference_init() != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "Inference initialization failed"
-        );
+        ESP_LOGE(TAG,"Inference initialization failed");
 
         return;
     }
 
     if (wifi_init_sta() != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "Wi-Fi initialization failed"
-        );
+        ESP_LOGE(TAG,"Wi-Fi initialization failed");
 
         return;
     }
 
     if (mqtt_init() != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "MQTT initialization failed"
-        );
+        ESP_LOGE(TAG,"MQTT initialization failed");
 
         return;
     }
 
-    ESP_LOGI(
-        TAG,
-        "Camera warm-up started"
-    );
+    ESP_LOGI(TAG,"Camera warm-up started");
 
     for (int index = 0; index < 8; ++index) {
-        camera_fb_t *warmup_frame =
-            camera_capture();
+        camera_fb_t *warmup_frame =camera_capture();
 
         if (warmup_frame != nullptr) {
             camera_release(warmup_frame);
         }
 
-        vTaskDelay(
-            pdMS_TO_TICKS(200)
-        );
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 
-    ESP_LOGI(
-        TAG,
-        "System ready"
-    );
+    ESP_LOGI(TAG,"System ready");
 
     while (true) {
-        camera_fb_t *frame =
-            camera_capture();
+        camera_fb_t *frame = camera_capture();
 
         if (frame == nullptr) {
-            ESP_LOGE(
-                TAG,
-                "Frame acquisition failed"
-            );
+            ESP_LOGE(TAG,"Frame acquisition failed");
 
-            vTaskDelay(
-                pdMS_TO_TICKS(
-                    INFERENCE_INTERVAL_MS
-                )
-            );
+            vTaskDelay(pdMS_TO_TICKS(INFERENCE_INTERVAL_MS));
 
             continue;
         }
@@ -122,23 +90,16 @@ extern "C" void app_main(void)
                 "person=%.4f",
                 prediction.logits[0],
                 prediction.logits[1],
-                prediction.logits[2]
-            );
+                prediction.logits[2]);
 
             const bool is_alert =
-                prediction.class_index == 0
-                || prediction.class_index == 2;
+                prediction.class_index == 0 || prediction.class_index == 2;
 
             if (is_alert) {
-                const esp_err_t upload_result =
-                    http_upload_frame(frame);
+                const esp_err_t upload_result = http_upload_frame(frame);
 
                 if (upload_result != ESP_OK) {
-                    ESP_LOGE(
-                        TAG,
-                        "Alert image upload failed: %s",
-                        esp_err_to_name(upload_result)
-                    );
+                    ESP_LOGE(TAG,"Alert image upload failed: %s",esp_err_to_name(upload_result));
                 }
             }
 
@@ -150,34 +111,17 @@ extern "C" void app_main(void)
                     );
 
                 if (mqtt_result != ESP_OK) {
-                    ESP_LOGE(
-                        TAG,
-                        "MQTT publish failed: %s",
-                        esp_err_to_name(mqtt_result)
-                    );
+                    ESP_LOGE(TAG,"MQTT publish failed: %s",esp_err_to_name(mqtt_result));
                 }
             } else {
-                ESP_LOGW(
-                    TAG,
-                    "MQTT not connected yet"
-                );
+                ESP_LOGW(TAG,"MQTT not connected yet");
             }
         } else {
-            ESP_LOGE(
-                TAG,
-                "Inference failed: %s",
-                esp_err_to_name(
-                    inference_result
-                )
-            );
+            ESP_LOGE(TAG,"Inference failed: %s",esp_err_to_name(inference_result));
         }
 
         camera_release(frame);
 
-        vTaskDelay(
-            pdMS_TO_TICKS(
-                INFERENCE_INTERVAL_MS
-            )
-        );
+        vTaskDelay(pdMS_TO_TICKS(INFERENCE_INTERVAL_MS));
     }
 }

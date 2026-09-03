@@ -1,6 +1,4 @@
 """
-File: training/preview_augmentation.py
-
 Description:
 Display one original image and multiple augmented versions.
 """

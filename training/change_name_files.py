@@ -1,6 +1,4 @@
 """
-File: training/change_name_files.py
-
 Description:
 Clean image filenames inside dataset/training.
 

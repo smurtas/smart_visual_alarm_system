@@ -1,6 +1,4 @@
 """
-File: training/clean_dataset.py
-
 Description: 
 Validate the images stored in the incoming dataset folder.
 If an image is corrupted or cannot be opened, it is moved to the rejected folder.

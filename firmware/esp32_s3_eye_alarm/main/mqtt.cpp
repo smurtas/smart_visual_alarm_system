@@ -54,21 +54,11 @@ esp_err_t mqtt_init()
     }
 
     ESP_LOGI(TAG,"Initializing MQTT client");
+    esp_mqtt_client_config_t configuration = {};
 
-    const esp_mqtt_client_config_t configuration = {
-        .broker = {
-            .address = {
-                .uri = MQTT_BROKER_URI
-            }
-        },
-        .credentials = {
-            .client_id =
-                "esp32-s3-eye-smart-alarm"
-        },
-        .session = {
-            .keepalive = 60
-        }
-    };
+    configuration.broker.address.uri = MQTT_BROKER_URI;
+    configuration.credentials.client_id = "esp32-s3-eye-smart-alarm";
+    configuration.session.keepalive = 60;
 
     mqtt_client = esp_mqtt_client_init(&configuration);
 

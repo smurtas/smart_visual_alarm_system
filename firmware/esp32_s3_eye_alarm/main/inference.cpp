@@ -4,6 +4,10 @@
 #include <cmath>
 #include <cstdint>
 
+#include "dl_model_base.hpp"
+#include "dl_tensor_base.hpp"
+#include "dl_math.hpp"
+
 #include "dl_tool.hpp"
 #include "esp_heap_caps.h"
 #include "esp_log.h"

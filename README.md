@@ -1,275 +1,462 @@
-# Smart Visual Alarm System for Mountain House Monitoring
+# Smart Visual Alarm System
 
-## Project Overview
+IoT and TinyML project for visual monitoring of a mountain house using an ESP32-S3-EYE and a Raspberry Pi.
 
-This project aims to develop a smart visual alarm system for monitoring a mountain house environment. The system is designed to detect relevant visual events near the entrance or outdoor area of the house, where people or animals may pass, also during evening or night hours.
+The system performs image classification directly on the ESP32 and distinguishes three classes:
 
-The system is based on an embedded camera node and an IoT backend. The camera node acquires images from the monitored area and performs visual classification. When a relevant event is detected, an MQTT message is sent to a Raspberry Pi, which logs the event and forwards a notification to the user through a Telegram bot.
+- `animal`
+- `empty`
+- `person`
 
-The main goal is not only to implement a working alarm system, but also to evaluate lightweight neural network models suitable for visual classification in resource-constrained IoT scenarios.
-
-## Target Scenario
-
-The project is applied to a real-world mountain house scenario. The monitored area may contain:
-
-- an empty scene;
-- a person passing near the house;
-- a generic animal passing near the house.
-
-The objective is not to recognize the animal species, but to distinguish between the main classes relevant for the alarm system.
-
-## Target Classes
-
-The classification task is based on three classes:
-
-| Class | Description |
-|---|---|
-| `empty` | No relevant subject is visible |
-| `person` | At least one person is visible |
-| `animal` | At least one generic animal is visible |
+Images are processed locally. When a person or an animal is detected, the ESP32 sends the captured JPEG image to the Raspberry Pi through HTTP and publishes the prediction through MQTT. Node-RED receives the event and sends a Telegram notification with the captured image.
 
 ## System Architecture
 
-The system follows this pipeline:
-
 ```text
 ESP32-S3-EYE
-    ↓
-Image acquisition and visual classification
-    ↓
-MQTT event publishing
-    ↓
-Raspberry Pi MQTT broker
-    ↓
-Python backend
-    ↓
-Event logging and Telegram notification
-````
+      |
+      | Camera frame 320 x 240
+      v
+Image preprocessing
+      |
+      | Resize to 48 x 48
+      v
+MCUNet INT8 inference
+      |
+      +-----------------------------+
+      |                             |
+      | MQTT prediction             | HTTP JPEG upload
+      v                             v
+Mosquitto                     Flask image receiver
+      |                             |
+      |                       latest.jpg
+      v                             |
+Node-RED <--------------------------+
+      |
+      +--> Event logging
+      +--> Dashboard
+      +--> Telegram notification
+```
 
-The ESP32-S3-EYE acts as the camera node, while the Raspberry Pi is used as the IoT gateway. The Raspberry Pi runs the MQTT broker, receives alarm events, stores logs, and sends notifications to Telegram.
+All image classification is performed on-device. Images are not sent to a cloud service for inference.
 
-## Hardware Components
+## Hardware
 
-| Component                         | Role                                                        |
-| --------------------------------- | ----------------------------------------------------------- |
-| ESP32-S3-EYE                      | Camera node for image acquisition and visual classification |
-| Raspberry Pi 4 / Raspberry Pi 400 | MQTT broker, Python backend, event logging, Telegram bot    |
-| microSD card                      | Raspberry Pi OS and project files                           |
-| USB-C data cable                  | Programming and powering the ESP32-S3-EYE                   |
-| Camera support / tripod           | Positioning the camera toward the monitored area            |
-| Automatic external light          | Helps image acquisition in evening/night conditions         |
+- ESP32-S3-EYE
+- OV2640 camera
+- Raspberry Pi 400
+- Wi-Fi network
 
-## Software Components
+The ESP32-S3-EYE has 8 MB PSRAM and runs the final quantized neural network using ESP-DL.
 
-| Software          | Purpose                                          |
-| ----------------- | ------------------------------------------------ |
-| Python            | Training, backend, data processing               |
-| PyTorch           | Training and evaluation of neural network models |
-| Mosquitto         | MQTT broker running on Raspberry Pi              |
-| paho-mqtt         | Python MQTT client                               |
-| Telegram Bot API  | Remote alert notification                        |
-| ESP-IDF / ESP-WHO | ESP32-S3-EYE firmware development                |
-| GitHub            | Version control and project documentation        |
+## Software
 
-## Neural Network Models
+### ESP32
 
-The project evaluates different lightweight neural network architectures for the visual classification task:
+- ESP-IDF 6.0.2
+- ESP-DL
+- esp32-camera
+- ESP-MQTT
+- ESP HTTP Client
 
-1. **Small CNN / MLP baseline**
-   A simple lightweight model used as a baseline for comparison.
+### Raspberry Pi
 
-2. **MCUNet**
-   A TinyML-oriented architecture designed for microcontroller-level deployment.
+- Raspberry Pi OS
+- Mosquitto MQTT broker
+- Node-RED
+- Flask
+- Telegram Bot
 
-3. **TinyViT**
-   A lightweight vision transformer model used as a more modern architecture for comparison.
+### Machine Learning
 
-All models are trained and evaluated on the same dataset using the same target classes.
+- Python
+- PyTorch
+- torchvision
+- scikit-learn
+- matplotlib
 
-## Dataset Structure
+## Dataset
 
-The dataset is organized as follows:
+The final dataset contains 400 images divided into three classes.
 
 ```text
 dataset/
-├── raw/
+├── calibration/
+├── train/
+│   ├── animal/
 │   ├── empty/
-│   ├── person/
-│   └── animal/
-│
-├── processed/
-│   ├── train/
-│   ├── val/
-│   └── test/
-│
-└── splits/
-    ├── train.csv
-    ├── val.csv
-    └── test.csv
+│   └── person/
+├── val/
+│   ├── animal/
+│   ├── empty/
+│   └── person/
+└── test/
+    ├── animal/
+    ├── empty/
+    └── person/
 ```
 
-Images are collected in the real mountain house environment under different conditions:
+Final split:
 
-* daytime;
-* evening/night with automatic light;
-* different subject positions;
-* different distances from the entrance;
-* empty scene, person, and animal presence.
+| Split | Images |
+|---|---:|
+| Train | 280 |
+| Validation | 60 |
+| Test | 60 |
+| **Total** | **400** |
 
-Large image files are not tracked directly in the repository. Only dataset descriptions, scripts, and split files are versioned.
+The `calibration` set is used for INT8 quantization of MCUNet.
+
+Dataset images are kept locally and are not included in the public repository.
+
+The `training` directory also contains the scripts used during the original dataset preparation, including image validation, manual labeling, dataset splitting and augmentation.
+
+## Image Preprocessing
+
+The neural networks use RGB images resized to:
+
+```text
+48 x 48
+```
+
+The images are normalized using ImageNet statistics:
+
+```text
+mean = [0.485, 0.456, 0.406]
+std  = [0.229, 0.224, 0.225]
+```
+
+Training data augmentation includes small rotations, translations, scaling, horizontal flipping, brightness and contrast changes, and occasional Gaussian blur.
+
+## Models
+
+Three models were trained and compared using the same dataset.
+
+### MLP
+
+A multilayer perceptron was used as the baseline model.
+
+### MCUNet-style model
+
+A compact convolutional neural network based on MCUNet design principles and inverted residual blocks.
+
+The architecture was manually defined for this project and was not generated using the official TinyNAS architecture search.
+
+### TinyViT-style model
+
+A compact Vision Transformer designed for comparison with the convolutional MCUNet model.
+
+It is a custom TinyViT-style architecture and not the official Microsoft TinyViT implementation.
+
+## Model Comparison
+
+| Model | Test Accuracy | Macro F1 | Parameters | Checkpoint Size | Inference Time* |
+|---|---:|---:|---:|---:|---:|
+| MLP | 81.67% | 0.8257 | 889,411 | 3.40 MB | 4.495 ms |
+| MCUNet | **90.00%** | **0.9027** | 58,563 | 0.28 MB | 5.845 ms |
+| TinyViT | 73.33% | 0.7398 | **46,563** | **0.19 MB** | 5.530 ms |
+
+\*Inference times in this table were measured during model evaluation on the development machine and are not ESP32 inference benchmarks.
+
+MCUNet was selected for deployment because it achieved the highest classification accuracy and Macro F1 while keeping the model compact enough for embedded deployment.
+
+## INT8 Quantization
+
+The selected MCUNet model is quantized to INT8 using a representative calibration dataset.
+
+```text
+PyTorch MCUNet
+      |
+      v
+INT8 quantization
+      |
+      v
+mcunet_int8.espdl
+      |
+      v
+ESP32-S3-EYE
+```
+
+The deployment graph removes operations that caused compatibility problems during the first export attempts and produces an ESP-DL model directly from the PyTorch network.
+
+The final model is stored in:
+
+```text
+firmware/esp32_s3_eye_alarm/main/model/mcunet_int8.espdl
+```
+
+## ESP32 Firmware
+
+The firmware performs the following operations continuously:
+
+1. Capture a JPEG frame from the OV2640 camera at 320 x 240.
+2. Decode the JPEG image.
+3. Resize the image to 48 x 48.
+4. Normalize and quantize the input.
+5. Run MCUNet INT8 inference using ESP-DL.
+6. Compute the predicted class and confidence.
+7. Publish the prediction through MQTT.
+8. For `person` or `animal`, upload the JPEG image to the Raspberry Pi.
+
+The classes used by the deployed model are:
+
+```text
+0 = animal
+1 = empty
+2 = person
+```
+
+## MQTT
+
+The ESP32 publishes predictions to:
+
+```text
+smartalarm/prediction
+```
+
+Example:
+
+```json
+{
+  "class": "person",
+  "confidence": 0.9232
+}
+```
+
+Mosquitto runs on the Raspberry Pi on the standard MQTT port:
+
+```text
+1883
+```
+
+## HTTP Image Upload
+
+When an alarm class is detected, the ESP32 sends the original JPEG frame to:
+
+```text
+POST /upload-alert
+Content-Type: image/jpeg
+```
+
+The Flask receiver stores the most recent image as:
+
+```text
+runtime/images/latest.jpg
+```
+
+The endpoint:
+
+```text
+GET /health
+```
+
+can be used to verify that the receiver is running.
+
+Runtime images and logs are excluded from Git.
+
+## Node-RED
+
+Node-RED subscribes to:
+
+```text
+smartalarm/prediction
+```
+
+The flow:
+
+- receives MQTT predictions;
+- adds timestamps;
+- records events;
+- updates the dashboard;
+- processes the three predicted classes;
+- sends Telegram alerts for `person` and `animal`;
+- attaches the latest image received from the ESP32.
+
+The Node-RED flow is stored in:
+
+```text
+node-red/flows.json
+```
+
+## Telegram Alerts
+
+For a relevant detection, the user receives a Telegram notification containing:
+
+- detected class;
+- confidence;
+- timestamp;
+- captured image.
+
+No alert is generated for an `empty` scene.
+
+Telegram credentials and other private configuration values are not stored in the repository.
 
 ## Repository Structure
 
 ```text
-smart-visual-alarm-mountain-house/
-│
+Smart-Visual-Alarm-System/
+├── dataset/
+├── esp32/
+├── firmware/
+│   └── esp32_s3_eye_alarm/
+├── node-red/
+│   └── flows.json
+├── raspberry/
+│   ├── image_receiver.py
+│   └── install_mosquitto.sh
+├── results/
+│   ├── comparison/
+│   ├── mcunet/
+│   ├── mlp/
+│   └── tinyvit/
+├── runtime/
+├── training/
 ├── README.md
 ├── requirements.txt
-├── .gitignore
-│
-├── docs/
-│   ├── project_proposal.md
-│   ├── architecture.md
-│   ├── dataset_description.md
-│   └── results.md
-│
-├── dataset/
-│   ├── README.md
-│   ├── raw/
-│   ├── processed/
-│   └── splits/
-│
-├── training/
-│   ├── train_baseline_cnn.py
-│   ├── train_mcunet.py
-│   ├── train_tinyvit.py
-│   ├── evaluate.py
-│   ├── export_model.py
-│   └── configs/
-│
-├── models/
-│   ├── baseline_cnn/
-│   ├── mcunet/
-│   └── tinyvit/
-│
-├── esp32/
-│   ├── README.md
-│   ├── camera_test/
-│   ├── mqtt_publish_test/
-│   └── final_firmware/
-│
-├── raspberry/
-│   ├── install_mosquitto.sh
-│   ├── mqtt_subscriber.py
-│   ├── telegram_bot.py
-│   ├── event_logger.py
-│   └── config.example.json
-│
-├── results/
-│   ├── metrics/
-│   ├── confusion_matrices/
-│   ├── latency_tests/
-│   └── plots/
-│
-└── report/
-    ├── figures/
-    └── overleaf_notes.md
+└── .gitignore
 ```
 
-## MQTT Communication
-
-The ESP32-S3-EYE publishes alarm events to an MQTT topic.
-
-Example topic:
+## Main Training Scripts
 
 ```text
-mountain_house/alarm/events
+training/
+├── augmentation.py
+├── dataset.py
+├── train_mlp.py
+├── evaluate_mlp.py
+├── train_mcunet.py
+├── evaluate_mcunet.py
+├── quantize_mcunet.py
+├── train_tiny_vit.py
+├── evaluate_tiny_vit.py
+└── compare_models.py
 ```
 
-Example payload:
+Additional scripts document the dataset collection, validation, labeling and preparation process.
 
-```json
-{
-  "event_id": "EVT_001",
-  "timestamp": "2026-01-01 22:41:00",
-  "label": "animal",
-  "confidence": 0.82,
-  "location": "mountain_house_entrance"
-}
+## Raspberry Pi Setup
+
+Install and start Mosquitto:
+
+```bash
+bash raspberry/install_mosquitto.sh
 ```
 
-The Raspberry Pi subscribes to this topic and processes the received event.
+Start the HTTP image receiver:
 
-## Telegram Notification
+```bash
+python3 raspberry/image_receiver.py
+```
 
-When a relevant event is received, the Raspberry Pi backend sends a Telegram notification to the user.
+Check the receiver:
 
-Example notification:
+```bash
+curl http://localhost:5000/health
+```
+
+Node-RED must be running with the flow contained in `node-red/flows.json`.
+
+## ESP32 Build and Flash
+
+Activate ESP-IDF:
+
+```bash
+source ~/esp/esp-idf/export.sh
+```
+
+Enter the firmware directory:
+
+```bash
+cd firmware/esp32_s3_eye_alarm
+```
+
+Build:
+
+```bash
+idf.py build
+```
+
+Flash and open the serial monitor:
+
+```bash
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+The serial port may be different depending on the system.
+
+Wi-Fi credentials, MQTT broker address and HTTP receiver address are configured locally in:
 
 ```text
-Smart Visual Alarm
-
-Detected class: animal
-Confidence: 82%
-Location: mountain_house_entrance
-Timestamp: 2026-01-01 22:41:00
+firmware/esp32_s3_eye_alarm/main/secrets.hpp
 ```
 
-Telegram tokens and private credentials are not stored in the repository.
+This file is excluded from Git. An example configuration is provided in:
 
-## Evaluation Metrics
+```text
+secrets.example.hpp
+```
 
-The project evaluates both machine learning performance and system-level performance.
+## Final Integration Test
 
-### Machine Learning Metrics
+The complete system has been tested successfully with the ESP32-S3-EYE and Raspberry Pi.
 
-* Accuracy
-* Precision
-* Recall
-* F1-score
-* Confusion matrix
+Verified operations:
 
-### Efficiency and System Metrics
+- camera initialization;
+- JPEG image acquisition at 320 x 240;
+- MCUNet INT8 model loading;
+- on-device inference;
+- `animal`, `empty` and `person` classification;
+- Wi-Fi connection;
+- MQTT publication;
+- HTTP JPEG upload;
+- image storage on the Raspberry Pi;
+- Node-RED event processing;
+- Telegram notification with the captured image.
 
-* Number of parameters
-* Model size
-* Inference latency
-* MQTT communication latency
-* End-to-end notification latency
-* False positives
-* False negatives
+The final tested pipeline is:
 
-## Project Goals
+```text
+ESP32-S3-EYE
+      ↓
+MCUNet INT8 inference
+      ↓
+person / animal detected
+      ↓
+HTTP image upload + MQTT event
+      ↓
+Raspberry Pi
+      ↓
+Flask + Mosquitto
+      ↓
+Node-RED
+      ↓
+Telegram alert with image
+```
 
-The main goals of the project are:
+## Project Status
 
-1. Collect a small real-world dataset from the target environment.
-2. Train and evaluate lightweight neural network models.
-3. Compare a baseline model, MCUNet, and TinyViT.
-4. Select the most suitable model for the visual alarm task.
-5. Implement MQTT communication between ESP32-S3-EYE and Raspberry Pi.
-6. Send Telegram notifications when alarm events are detected.
-7. Evaluate the complete IoT pipeline in a realistic scenario.
-
-## Current Status
-
-* [ ] Repository structure created
-* [ ] Raspberry Pi configured
-* [ ] MQTT broker installed
-* [ ] ESP32-S3-EYE camera tested
-* [ ] Dataset collection started
-* [ ] Baseline model implemented
-* [ ] MCUNet tested
-* [ ] TinyViT tested
-* [ ] MQTT event publishing implemented
-* [ ] Telegram backend implemented
-* [ ] Final integration completed
-* [ ] Experimental evaluation completed
-* [ ] Final report completed
+- [x] ESP32-S3-EYE camera configured
+- [x] Dataset collected and labeled
+- [x] Dataset cleaned and split
+- [x] Data augmentation implemented
+- [x] MLP trained and evaluated
+- [x] TinyViT-style model trained and evaluated
+- [x] MCUNet-style model trained and evaluated
+- [x] Models compared
+- [x] MCUNet selected for deployment
+- [x] MCUNet quantized to INT8
+- [x] ESP-DL model deployed on ESP32-S3-EYE
+- [x] On-device inference tested
+- [x] MQTT communication tested
+- [x] HTTP image upload tested
+- [x] Node-RED dashboard and event processing tested
+- [x] Telegram notification with image tested
+- [x] Complete ESP32 → Raspberry Pi → Telegram pipeline tested
+- [ ] Final test in the mountain house environment
 
 ## Notes
 
-This project is developed as part of an Internet of Things laboratory activity. The focus is on combining embedded vision, lightweight machine learning, MQTT communication, and remote notification in a real-world monitoring scenario.
+This project was developed for the Internet of Things course at the University of Trento.
 
-```
-```
+The objective is to combine TinyML inference on a resource-constrained embedded device with standard IoT communication protocols and an edge gateway, while keeping image classification local to the ESP32.

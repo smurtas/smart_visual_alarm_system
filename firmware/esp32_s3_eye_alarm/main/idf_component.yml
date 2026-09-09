@@ -1,0 +1,6 @@
+dependencies:
+  espressif/esp-dl: ^3.3.9
+  espressif/esp32-camera: '*'
+  espressif/mqtt: '*'
+
+

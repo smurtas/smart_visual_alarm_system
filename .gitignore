@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Dataset
+dataset/
+├── calibration/
+├── train/
+├── val/
+└── test/
+
+# Training models
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.tflite
+*.h5
+
+# Keep the model used by the ESP32
+!firmware/esp32_s3_eye_alarm/main/model/
+!firmware/esp32_s3_eye_alarm/main/model/mcunet_int8.espdl
+
+# Generated model files
+results/**/*.espdl
+results/**/*.info
+results/**/*.json
+results/**/*.onnx
+results/**/*.pt
+results/**/*.pth
+
+# Runtime data
+runtime/images/
+runtime/events.csv
+*.log
+
+# ESP-IDF
+firmware/**/build/
+firmware/**/managed_components/
+firmware/**/sdkconfig.old
+
+# Local configuration and secrets
+firmware/esp32_s3_eye_alarm/main/secrets.hpp
+raspberry/config.json
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Node-RED
+node_modules/
+.node-red/
+flows_cred.json
+
+# Backups and temporary files
+backups/
+*.bak
+*.tmp
+*.old
+*.orig
+repo_tree.txt
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~

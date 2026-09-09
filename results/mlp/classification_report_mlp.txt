@@ -1,0 +1,19 @@
+MLP evaluation
+============================================================
+Test loss: 0.4410
+Test accuracy: 0.8167
+Trainable parameters: 889,411
+Checkpoint size: 3.40 MB
+Average inference time per image: 4.495 ms
+
+Classification report
+------------------------------------------------------------
+              precision    recall  f1-score   support
+
+      animal     1.0000    0.8889    0.9412        18
+       empty     0.7083    0.8095    0.7556        21
+      person     0.8000    0.7619    0.7805        21
+
+    accuracy                         0.8167        60
+   macro avg     0.8361    0.8201    0.8257        60
+weighted avg     0.8279    0.8167    0.8200        60

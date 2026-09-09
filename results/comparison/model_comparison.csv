@@ -1,0 +1,4 @@
+model,test_accuracy,test_loss,macro_f1,parameters,model_size_mb,inference_time_ms
+MLP,0.8167,0.441,0.8257,889411,3.4,4.495
+MCUNet,0.9,0.314,0.9027,58563,0.28,5.845
+TinyViT,0.7333,0.6422,0.7398,46563,0.19,5.53

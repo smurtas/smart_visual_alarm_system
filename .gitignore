@@ -70,4 +70,4 @@ repo_tree.txt
 .DS_Store
 Thumbs.db
 *.swp
-*~
+*~dataset/training/

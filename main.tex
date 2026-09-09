@@ -135,9 +135,8 @@ while the detection event is published through MQTT. The Raspberry Pi then
 handles the downstream IoT integration, and Node-RED processes the event flow
 that ultimately triggers the Telegram notification.
 
-This architecture separates local visual intelligence from the communication
-and notification infrastructure, following an edge-oriented and event-driven
-design.
+In this architecture, image classification is performed on the ESP32-S3-EYE, 
+while communication and notification tasks are handled by the Raspberry Pi.
 
 \begin{figure}[htbp]
 \centering
@@ -502,6 +501,381 @@ The training data were loaded in batches of 16 images and shuffled at each
 epoch. Validation and test data were not shuffled. The same dataset splits
 were used when evaluating the different model architectures, allowing their
 performance to be compared under consistent experimental conditions.
+
+\section{Machine Learning Models}
+\label{sec:models}
+
+\subsection{Model Selection Strategy}
+\label{subsec:model-selection}
+
+The machine learning component of the Smart Visual Alarm System was
+developed as a three-class image classification problem, with
+\texttt{animal}, \texttt{empty}, and \texttt{person} as the target classes.
+However, predictive performance alone was not sufficient to determine the
+most suitable model for the final application. Since inference had to be
+executed directly on the ESP32-S3-EYE, the computational and memory
+requirements of the model also had to be considered.
+
+For this reason, the project followed a comparative approach rather than
+selecting a single neural network architecture from the beginning. Three
+different models were investigated: a Multilayer Perceptron (MLP), used as
+a simple baseline; TinyViT, representing a more advanced vision architecture;
+and MCUNet, an architecture specifically designed for machine learning on
+resource-constrained microcontrollers.
+
+The MLP provides a useful reference point for evaluating whether more
+specialized image-processing architectures provide a meaningful advantage.
+Since it processes flattened image data through fully connected layers, it
+does not explicitly exploit the spatial structure of the input image and
+can require a relatively large number of parameters.
+
+TinyViT was investigated as a more sophisticated alternative based on
+modern vision architectures. Its inclusion makes it possible to evaluate
+whether a more expressive model can provide improved classification
+performance while considering the additional computational complexity
+associated with deployment on a constrained embedded platform.
+
+MCUNet was selected as the architecture most closely aligned with the
+TinyML requirements of the project. Its design targets microcontroller
+environments, where memory consumption, model size, and computational cost
+are important constraints in addition to classification accuracy. This
+makes it particularly relevant for deployment on the ESP32-S3-EYE.
+
+The three architectures therefore represent different points in the design
+space, from a simple baseline to increasingly specialized visual models.
+They were trained and evaluated using the same dataset organization so that
+their behaviour could be compared under consistent experimental conditions.
+The final model selection was then based not only on predictive performance,
+but also on the practical requirements of embedded deployment.
+
+\subsection{MLP Baseline}
+\label{subsec:mlp}
+
+The first model tested in this project was a Multilayer Perceptron (MLP).
+The purpose of this model was to provide a simple baseline that could be
+used as a reference for the comparison with the other neural network
+architectures.
+
+Unlike convolutional neural networks, an MLP does not directly use the
+spatial structure of an image. Each input image is therefore resized and
+converted into a tensor, and the resulting pixel values are flattened into
+a one-dimensional vector before being processed by the fully connected
+layers of the network.
+
+An initial version of the MLP was tested during the development of the
+project. However, this model contained more than seven million parameters,
+which was too large considering the target embedded platform. A second,
+smaller version was therefore developed using $48 \times 48$ input images.
+This significantly reduced the number of parameters while keeping the MLP
+useful as a baseline classifier.
+
+The final MLP architecture consists of fully connected layers followed by
+non-linear activation functions. Dropout is also used during training to
+reduce overfitting. The output layer contains three neurons, corresponding
+to the three classes used in the project: \texttt{animal},
+\texttt{empty}, and \texttt{person}.
+
+The MLP was not expected to be the final model deployed on the
+ESP32-S3-EYE. Its main purpose was to establish a simple reference model
+and to show the limitations of using fully connected layers for image
+classification, especially when model size and memory usage are important
+constraints.
+
+\subsection{TinyViT}
+\label{subsec:tinyvit}
+
+The second model considered in the project was TinyViT. The purpose of
+testing this model was to compare the simple MLP baseline with a more
+advanced architecture designed for computer vision tasks.
+
+Vision Transformer models process images differently from traditional
+convolutional neural networks. Instead of relying only on convolutional
+operations, they use attention mechanisms to learn relationships between
+different regions of an image. Standard Vision Transformers, however, can
+be computationally expensive and are generally not suitable for small
+microcontrollers.
+
+TinyViT was designed to reduce this computational cost while keeping some
+of the main advantages of transformer-based vision models. For this reason,
+it was an interesting candidate for this project, where the model has to
+classify images while also respecting the hardware limitations of the
+ESP32-S3-EYE.
+
+As for the other models, TinyViT was trained to classify the three target
+classes: \texttt{animal}, \texttt{empty}, and \texttt{person}. The same
+dataset split was used so that its results could later be compared with
+those obtained with the MLP and MCUNet.
+
+Although TinyViT offers a more advanced approach to image classification,
+its suitability for this project also depends on its model size,
+computational requirements, and the possibility of deploying it on the
+target microcontroller. These aspects were therefore considered together
+with its classification performance when comparing the three models.
+
+\subsection{MCUNet}
+\label{subsec:mcunet}
+
+The third model evaluated in the project was MCUNet. This model was
+particularly interesting because it is designed for machine learning
+applications running on microcontrollers, where memory and computational
+resources are limited.
+
+Compared with the MLP and TinyViT, MCUNet is more closely related to the
+final objective of the project: running the complete image classification
+process directly on the ESP32-S3-EYE. For this reason, the architecture
+needs to remain small enough for embedded deployment while still providing
+good classification performance.
+
+The implemented network is based on convolutional layers and inverted
+residual blocks. These blocks allow the network to extract increasingly
+complex visual features without requiring a very large number of
+parameters. The number of channels increases through the network as the
+spatial dimensions of the feature maps are progressively reduced.
+
+At the end of the feature extraction stage, global average pooling is used
+to reduce each feature map to a single value. The resulting features are
+then passed to the final classification layer, which produces the scores
+for the three classes: \texttt{animal}, \texttt{empty}, and
+\texttt{person}. Dropout is also used before the final classification stage
+to reduce overfitting.
+
+MCUNet was trained using the same dataset organization used for the other
+models. After the comparison between the three architectures, this model
+was selected for the final embedded implementation. The trained network was
+then quantized to INT8 and converted to a format that could be executed on
+the ESP32-S3-EYE. The quantization and deployment process is described in
+a later section.
+
+\section{Training and Model Evaluation}
+\label{sec:training-evaluation}
+
+\subsection{Training Setup}
+\label{subsec:training-setup}
+
+The three models were trained using PyTorch. The same dataset organization
+was used for all the experiments, with separate training, validation, and
+test sets as described in the previous section.
+
+All input images were resized to $48 \times 48$ pixels before being passed
+to the models. During training, data augmentation was applied dynamically
+to the training images, while validation and test images were only resized
+and normalized. The images were processed in batches of 16 samples.
+
+The training set was shuffled at the beginning of each epoch. The validation
+set was used during the training process to check how well the model was
+generalizing to images not used for parameter optimization. The test set,
+instead, was kept separate and used only for the final evaluation.
+
+During the experiments, the training and validation loss were monitored
+across the epochs. Validation performance was also used to identify the
+best model obtained during training and to avoid selecting a model only
+according to its performance on the training data.
+
+After training, each model was evaluated on the same test set. This made it
+possible to compare the different architectures under the same conditions
+and to evaluate both their classification performance and their suitability
+for the final embedded application.
+
+\subsection{Model Evaluation and Selection}
+\label{subsec:model-evaluation}
+
+After training, the three models were evaluated using the same test set.
+Accuracy was used to measure the percentage of correctly classified images.
+Precision, recall, and F1-score were also considered to analyse the
+performance of the models on the individual classes. The confusion matrix
+was used to identify which classes were more frequently confused.
+
+The Macro F1-score was particularly useful because it gives the same
+importance to each class when calculating the average performance. This is
+relevant in this project because the final dataset is not perfectly balanced,
+with 120 animal images and 140 images for each of the other two classes.
+
+However, classification performance was not the only criterion used to
+select the final model. The classifier had to run directly on the
+ESP32-S3-EYE, so the number of parameters, model size, and computational
+requirements were also important. A model with high accuracy but excessive
+memory or computation requirements would not be suitable for the final
+system.
+
+The MLP was used as a baseline, while TinyViT and MCUNet were tested as
+alternative architectures for image classification. The three models were
+trained and tested using the same dataset organization, allowing their
+results to be compared under the same conditions.
+
+The results of the comparison are summarized in
+Table~\ref{tab:model-comparison}.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of the models evaluated in the project.}
+\label{tab:model-comparison}
+\begin{tabular}{lrrrr}
+\hline
+\textbf{Model} &
+\textbf{Accuracy} &
+\textbf{Macro F1} &
+\textbf{Parameters} &
+\textbf{Size} \\
+\hline
+MLP     & -- & -- & -- & -- \\
+TinyViT & -- & -- & -- & -- \\
+MCUNet  & -- & -- & -- & -- \\
+\hline
+\end{tabular}
+\end{table}
+
+The comparison showed that model selection for a TinyML application requires
+a compromise between classification performance and deployment constraints.
+MCUNet was selected for the final implementation because it provided a good
+balance between these two aspects and was suitable for conversion and
+execution on the ESP32-S3-EYE.
+
+The selected model was then quantized to INT8 and converted for embedded
+deployment, as described in the following section.
+
+\section{TinyML Deployment on the ESP32-S3-EYE}
+\label{sec:tinyml-deployment}
+
+After the comparison of the three models, MCUNet was selected for the final
+implementation on the ESP32-S3-EYE. The next step was therefore to convert
+the trained PyTorch model into a format suitable for execution on the
+microcontroller.
+
+Running a neural network on a microcontroller introduces stronger resource
+constraints than running the same model on a computer. In particular, the
+available memory and computational power are limited. For this reason, the
+trained MCUNet model was quantized from floating-point representation to
+8-bit integers (INT8).
+
+Post-training quantization was performed using a separate calibration
+dataset containing 60 images, with 20 samples for each of the three classes.
+The calibration images were used to determine the numerical ranges required
+for INT8 quantization and were kept separate from the dataset used for
+training and final model evaluation.
+
+After quantization, the model was converted to the format required by the
+Espressif embedded machine learning framework and integrated into the
+ESP-IDF firmware. The final model is stored directly in the firmware and
+inference is therefore performed locally on the ESP32-S3-EYE without
+requiring a remote machine learning service.
+
+During operation, the ESP32-S3-EYE captures an image from the camera and
+preprocesses it according to the input requirements of the deployed model.
+The processed image is passed to the INT8 MCUNet model, which produces a
+prediction for the three classes: \texttt{animal}, \texttt{empty}, and
+\texttt{person}, together with the corresponding confidence values.
+
+The predicted class and confidence are then used by the application logic.
+The \texttt{empty} class does not generate an alarm. For
+\texttt{person} and \texttt{animal}, an alert is generated only when the
+prediction confidence is equal to or greater than 0.85. Predictions below
+this threshold are still printed in the device logs but are not sent to
+the notification system.
+
+In the final firmware, inference is executed approximately every two
+seconds. At startup, the camera also captures and discards eight frames
+before starting the inference loop. This warm-up phase allows the camera
+to stabilize before images are used by the classifier.
+
+Performing inference directly on the ESP32-S3-EYE is an important part of
+the project. Images do not need to be continuously transmitted to another
+device for classification. Instead, the microcontroller first analyses the
+scene locally and starts the communication pipeline only when the detected
+event satisfies the alert conditions.
+
+\section{IoT Communication and Notification System}
+\label{sec:iot-communication}
+
+Once a relevant event is detected by the ESP32-S3-EYE, the result has to be
+transmitted to the rest of the system. Two communication mechanisms are used
+for this purpose: HTTP for transferring the captured image and MQTT for
+publishing the detection event.
+
+HTTP is used because the captured JPEG image has to be transferred as a
+complete file to the Raspberry Pi. When the alert condition is satisfied,
+the ESP32-S3-EYE sends the captured image to an HTTP service running on the
+Raspberry Pi. The received image is then stored locally and can be used in
+the final notification.
+
+MQTT is used separately to communicate the detection event. The
+ESP32-S3-EYE acts as an MQTT publisher and sends a message containing
+information about the detected class and its confidence. The Raspberry Pi
+hosts the MQTT infrastructure used by the system, while Node-RED receives
+and processes the published events.
+
+Using HTTP and MQTT for different purposes keeps the two types of
+communication separate. HTTP handles the image data, while MQTT provides a
+lightweight mechanism for sending the event generated by the classifier.
+This also avoids including the complete image inside the MQTT message.
+
+Node-RED is used on the Raspberry Pi to connect the detection event with the
+notification service. When a new MQTT event is received, the flow processes
+the message and prepares the information required for the notification.
+Both \texttt{person} and \texttt{animal} detections can generate an alert,
+provided that the confidence threshold has been satisfied on the
+ESP32-S3-EYE. The image previously received through HTTP is then associated
+with the corresponding event.
+
+The final notification is sent through Telegram. It contains the image
+captured when the detection occurred together with the detected class and
+confidence. In this way, the user can immediately see whether a person or
+an animal has been detected without directly accessing the Raspberry Pi or
+the ESP32-S3-EYE.
+
+The complete communication process is therefore activated only after the
+local inference and alert decision. Under normal conditions, when the scene
+is classified as \texttt{empty} or when the confidence of a relevant class
+is below the configured threshold, no image or alarm event is sent. This
+reduces unnecessary network communication and keeps the classification task
+on the edge device.
+
+\section{System Integration and Testing}
+\label{sec:system-testing}
+
+After the individual components were developed, the complete system was
+tested by connecting the ESP32-S3-EYE, the Raspberry Pi, the MQTT
+communication, Node-RED, and Telegram.
+
+The ESP32-S3-EYE was installed in the target environment and used to
+continuously acquire images from the monitored area. Every two seconds, a
+new frame was processed and classified locally by the deployed MCUNet
+model. The predicted class and confidence were printed in the device logs,
+which made it possible to check the behaviour of the classifier during
+real operation.
+
+The complete notification pipeline was tested using both
+\texttt{person} and \texttt{animal} detections. When one of these classes
+was detected with a confidence of at least 0.85, the ESP32-S3-EYE sent the
+captured image to the Raspberry Pi through HTTP and published the detection
+event through MQTT. Node-RED processed the event and generated the Telegram
+notification containing the image, detected class, and confidence.
+
+Detections below the configured threshold were also useful during testing.
+They remained visible in the ESP32-S3-EYE logs but did not activate the
+communication and notification pipeline. This allowed the confidence
+threshold to act as an additional filter between the classifier output and
+the actual alarm.
+
+The tests also showed some limitations of the classifier in the real
+environment. In some situations, objects or parts of the background could
+produce an incorrect prediction, especially when the visual characteristics
+of the scene were similar to examples seen during training. This behaviour
+is important because the dataset was relatively small and the camera always
+observed the same environment.
+
+Despite these limitations, the integration tests confirmed that the complete
+IoT pipeline could operate from end to end: an image was acquired and
+classified on the ESP32-S3-EYE, the alert condition was evaluated locally,
+the image and event were transmitted to the Raspberry Pi, and the final
+notification was delivered through Telegram.
+
+\section{Limitations and Future Improvements}
+
+\section{Conclusion}
+
+\begin{abstract}
+...
+\end{abstract}
 
 \section{GitHub Repository}
 

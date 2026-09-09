@@ -1,0 +1,19 @@
+MCUNet-style evaluation
+============================================================
+Test loss: 0.3140
+Test accuracy: 0.9000
+Trainable parameters: 58,563
+Checkpoint size: 0.28 MB
+Average inference time per image: 5.845 ms
+
+Classification report
+------------------------------------------------------------
+              precision    recall  f1-score   support
+
+      animal     0.9474    1.0000    0.9730        18
+       empty     0.8571    0.8571    0.8571        21
+      person     0.9000    0.8571    0.8780        21
+
+    accuracy                         0.9000        60
+   macro avg     0.9015    0.9048    0.9027        60
+weighted avg     0.8992    0.9000    0.8992        60

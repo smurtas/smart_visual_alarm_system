@@ -1,0 +1,19 @@
+TinyViT-style evaluation
+============================================================
+Test loss: 0.6422
+Test accuracy: 0.7333
+Trainable parameters: 46,563
+Checkpoint size: 0.19 MB
+Average inference time per image: 5.530 ms
+
+Classification report
+------------------------------------------------------------
+              precision    recall  f1-score   support
+
+      animal     0.8824    0.8333    0.8571        18
+       empty     0.6400    0.7619    0.6957        21
+      person     0.7222    0.6190    0.6667        21
+
+    accuracy                         0.7333        60
+   macro avg     0.7482    0.7381    0.7398        60
+weighted avg     0.7415    0.7333    0.7340        60

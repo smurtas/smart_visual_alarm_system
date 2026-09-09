@@ -1,0 +1,19 @@
+FINAL MODEL COMPARISON
+=====================================================================================
+Model           Accuracy      Loss    Macro F1     Parameters     Size MB     Time ms
+-------------------------------------------------------------------------------------
+MLP               0.8167    0.4410      0.8257        889,411        3.40       4.495
+MCUNet            0.9000    0.3140      0.9027         58,563        0.28       5.845
+TinyViT           0.7333    0.6422      0.7398         46,563        0.19       5.530
+
+BEST RESULTS
+======================================================================
+Highest test accuracy: MCUNet (0.9000)
+Lowest test loss: MCUNet (0.3140)
+Highest available macro F1: MCUNet (0.9027)
+Fewest parameters: TinyViT (46,563)
+Smallest checkpoint: TinyViT (0.19 MB)
+Fastest available inference time: MLP (4.495 ms)
+
+Selected deployment model: MCUNet
+Reason: highest test accuracy with a compact parameter count and checkpoint size.

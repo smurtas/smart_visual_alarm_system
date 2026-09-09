@@ -390,8 +390,118 @@ used during the initial acquisition and labelling phases does not correspond
 exactly to the final organization of the repository.
 
 \subsection{Dataset Challenges and Class Imbalance}
-\subsection{Data Augmentation}
+\label{subsec:dataset-imbalance}
+
+The acquisition of images directly from the real deployment environment
+introduced a significant class imbalance. Since the camera continuously
+observed the entrance area, most of the automatically collected frames
+represented the \texttt{empty} class. Images containing a person were less
+frequent, while animal occurrences were particularly rare.
+
+This imbalance is a direct consequence of the target scenario. An empty
+entrance represents the normal operating condition of the system, whereas
+the presence of a person or an animal corresponds to a comparatively
+infrequent event. Therefore, simply using all the acquired images would
+have produced a dataset strongly dominated by the \texttt{empty} class.
+
+Such a distribution would be problematic for model training. A classifier
+trained on a highly imbalanced dataset could obtain apparently high overall
+accuracy by favouring the majority class, while performing poorly on the
+classes that are actually the most relevant for the alarm system.
+
+For this reason, the complete collection of raw images was not used directly
+for training. Instead, the number of samples selected from the different
+classes was controlled during dataset preparation. The \texttt{animal}
+class required particular attention because naturally acquired examples
+were much more difficult to obtain in the monitored environment.
+
+\subsection{Dataset Enrichment and Data Augmentation}
+\label{subsec:data-augmentation}
+
+The most significant limitation of the collected dataset concerned the
+\texttt{animal} class. While empty scenes were naturally abundant and
+person images could be deliberately collected in the monitored area, only
+two usable animal images were obtained during the original acquisition
+phase.
+
+Since this amount of data was insufficient for training a three-class
+classifier, the animal class was enriched with additional examples in order
+to increase its visual variability. The resulting dataset contained 120
+animal images. This enrichment was necessary to make the animal class
+usable in the experimental comparison, although the very limited number
+of original real-world animal observations remains an important limitation
+of the dataset.
+
+A second and distinct strategy was applied during model training through
+on-the-fly data augmentation. Training images were first resized to
+$48 \times 48$ pixels. Random horizontal flipping was applied with a
+probability of 0.5, together with rotations of up to $\pm 3^\circ$.
+Random affine transformations introduced translations of up to 8\% of the
+image dimensions and scaling between 0.90 and 1.10.
+
+Photometric variability was introduced using colour jitter, with variations
+in brightness, contrast, saturation, and hue. In particular, the configured
+factors were 0.35 for brightness, 0.25 for contrast, 0.10 for saturation,
+and 0.02 for hue. Gaussian blur was additionally applied with a probability
+of 0.15.
+
+These transformations were generated dynamically during training rather
+than stored as additional copies in the dataset. Consequently, the same
+source image could appear with different visual characteristics across
+training epochs.
+
+After augmentation, images were converted to tensors and normalized using
+the ImageNet mean and standard deviation. The randomized augmentation
+pipeline was applied exclusively to the training set. Validation and test
+images were only resized to $48 \times 48$, converted to tensors, and
+normalized using the same parameters.
+
+
 \subsection{Dataset Split}
+\label{subsec:dataset-split}
+
+After the dataset preparation process, the selected images were divided
+into independent training, validation, and test subsets using a stratified
+70\%--15\%--15\% split. A fixed random seed of 42 was used to make the
+selection and splitting procedure reproducible.
+
+To reduce the effect of the large number of available empty images, a
+maximum of 140 images per class was considered during dataset preparation.
+Both the \texttt{empty} and \texttt{person} classes reached this limit,
+whereas 120 images were available for the \texttt{animal} class. The final
+dataset therefore contained 400 images.
+
+The resulting distribution is summarized in
+Table~\ref{tab:dataset-split}.
+
+\begin{table}[htbp]
+\centering
+\caption{Distribution of the dataset used for model training, validation,
+and testing.}
+\label{tab:dataset-split}
+\begin{tabular}{lrrrr}
+\hline
+\textbf{Split} & \textbf{Animal} & \textbf{Empty} &
+\textbf{Person} & \textbf{Total} \\
+\hline
+Training   & 84  & 98  & 98  & 280 \\
+Validation & 18  & 21  & 21  & 60  \\
+Test       & 18  & 21  & 21  & 60  \\
+\hline
+Total      & 120 & 140 & 140 & 400 \\
+\hline
+\end{tabular}
+\end{table}
+
+The training set was used to optimize the model parameters, while the
+validation set was used to monitor generalization during model development
+and support training decisions. The test set was kept separate from the
+training process and used for the final evaluation of the models.
+
+The training data were loaded in batches of 16 images and shuffled at each
+epoch. Validation and test data were not shuffled. The same dataset splits
+were used when evaluating the different model architectures, allowing their
+performance to be compared under consistent experimental conditions.
 
 \section{GitHub Repository}
 

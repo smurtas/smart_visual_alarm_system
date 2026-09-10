@@ -291,11 +291,11 @@ The hardware architecture is based on two main devices: the ESP32-S3-EYE
 and a Raspberry Pi. The two platforms have complementary roles within the
 system.
 
-The ESP32-S3-EYE~\cite{espressif_s3eye} acts as the intelligent sensing node. It acquires images
-from the monitored environment and performs the complete local inference
-pipeline, including image preprocessing, execution of the TinyML model, and
-evaluation of the resulting prediction. Its role is therefore not limited
-to image acquisition: the device is responsible for deciding whether the
+The ESP32-S3-EYE~\cite{espressif_s3eye} acts as the intelligent sensing node.
+It acquires images from the monitored environment and performs the complete
+local inference pipeline, including image preprocessing, execution of the
+TinyML model, and evaluation of the resulting prediction. Its role is therefore 
+not limited to image acquisition: the device is responsible for deciding whether the
 observed scene contains a relevant event before any alert is propagated
 through the network.
 
@@ -333,11 +333,12 @@ ESP-IDF. The firmware integrates camera acquisition, image preprocessing,
 execution of the deployed TinyML model, application-level decision logic,
 Wi-Fi connectivity, HTTP communication, and MQTT event publication.
 
-The machine learning development pipeline is implemented in Python using
-PyTorch~\cite{paszke2019pytorch}. It includes dataset loading and preprocessing, model definition,
-training, validation, and evaluation. After training, the selected model is converted and quantized for deployment on the
-ESP32-S3-EYE, where inference is performed locally using the Espressif
-ESP-DL framework~\cite{espressif_espdl}.
+PyTorch~\cite{paszke2019pytorch} was used to implement the machine learning
+development pipeline. It includes dataset loading and preprocessing, model
+definition, training, validation, and evaluation. After training, the 
+selected model was converted and quantized for deployment using the Espressif 
+ESP-DL framework~\cite{espressif_espdl}. Inference is then performed locally on 
+the ESP32-S3-EYE.
 
 On the Raspberry Pi, the software stack provides the services required to
 receive images and process alarm events. MQTT is used for lightweight
@@ -636,10 +637,10 @@ constraints.
 \subsection{TinyViT}
 \label{subsec:tinyvit}
 
-The second model considered in the project was a compact architecture based
-on TinyViT~\cite{wu2022tinyvit}. The purpose of
-testing this model was to compare the simple MLP baseline with a more
-advanced architecture designed for computer vision tasks.
+TinyViT~\cite{wu2022tinyvit} was the second model considered in the project.
+A compact architecture based on this model was used to compare the simple
+MLP baseline with a more advanced architecture designed for computer vision
+tasks.
 
 Vision Transformer models process images differently from traditional
 convolutional neural networks. Instead of relying only on convolutional
@@ -668,10 +669,13 @@ with its classification performance when comparing the three models.
 \subsection{MCUNet}
 \label{subsec:mcunet}
 
-The third model evaluated in the project was a compact architecture based
-on MCUNet~\cite{lin2020mcunet}. This model wasparticularly interesting 
-because it is designed for machine learning applications running on 
-microcontrollers, where memory and computational resources are limited.
+\subsection{MCUNet}
+\label{subsec:mcunet}
+
+MCUNet~\cite{lin2020mcunet} was the basis for the third model evaluated in
+the project. This architecture was particularly interesting because it was
+designed for machine learning applications running on microcontrollers,
+where memory and computational resources are limited.
 
 Compared with the MLP and TinyViT, MCUNet is more closely related to the
 final objective of the project: running the complete image classification
@@ -888,7 +892,7 @@ the ESP32-S3-EYE sends the captured image to an HTTP service running on the
 Raspberry Pi. The received image is then stored locally and can be used in
 the final notification.
 
-MQTT~\cite{mqtt2019} is used separately to communicate the detection event. The
+MQTT~\cite{mqtt2019} is used to communicate the detection event. The
 ESP32-S3-EYE acts as an MQTT publisher and sends a message containing
 information about the detected class and its confidence. The Raspberry Pi
 hosts the MQTT infrastructure used by the system, while Node-RED receives

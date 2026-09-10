@@ -502,6 +502,34 @@ epoch. Validation and test data were not shuffled. The same dataset splits
 were used when evaluating the different model architectures, allowing their
 performance to be compared under consistent experimental conditions.
 
+Examples of the three classes used in the dataset are shown in
+Figure~\ref{fig:dataset-examples}.
+\begin{figure}[htbp]
+    \centering
+
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/example_animal.png}
+        \small (a) Animal
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/example_empty.png}
+        \small (b) Empty
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/example_person.png}
+        \small (c) Person
+    \end{minipage}
+
+    \caption{Examples of images belonging to the three classes used in the
+    dataset: animal, empty, and person.}
+    \label{fig:dataset-examples}
+\end{figure}
+
 \section{Machine Learning Models}
 \label{sec:models}
 

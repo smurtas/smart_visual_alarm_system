@@ -29,7 +29,32 @@
 \maketitle
 
 \begin{abstract}
-Your abstract.
+
+This project presents the development of a Smart Visual Alarm System that
+combines Tiny Machine Learning and IoT technologies for visual monitoring
+of a mountain house environment. An ESP32-S3-EYE is used to acquire images
+and classify the observed scene locally into three classes:
+\texttt{animal}, \texttt{empty}, and \texttt{person}.
+
+A dedicated dataset was prepared for the target environment and used to
+train and compare three neural network architectures: an MLP baseline,
+TinyViT, and MCUNet. MCUNet obtained the best results on the test set, with
+90.00\% accuracy and a Macro F1-score of 0.9027, while using 58,563
+trainable parameters. The selected model was quantized to INT8 and deployed
+on the ESP32-S3-EYE for on-device inference.
+
+The final system performs the classification directly on the edge device.
+When a person or an animal is detected with a confidence of at least 0.85,
+the captured image is transferred to a Raspberry Pi through HTTP and the
+detection event is published through MQTT. Node-RED processes the event and
+sends a Telegram notification containing the captured image and the
+classification result.
+
+The complete prototype was tested end-to-end, from image acquisition and
+local inference to the final remote notification. The project demonstrates
+the integration of TinyML inference on a resource-constrained device with
+standard IoT communication and application-level services.
+
 \end{abstract}
 
 \section{Introduction}
@@ -1011,14 +1036,39 @@ basis that can be further improved mainly by increasing the quantity and
 variability of the training data.
 
 \begin{abstract}
-...
+
+This project presents the development of a Smart Visual Alarm System that
+combines Tiny Machine Learning and IoT technologies for visual monitoring
+of a mountain house environment. An ESP32-S3-EYE is used to acquire images
+and classify the observed scene locally into three classes:
+\texttt{animal}, \texttt{empty}, and \texttt{person}.
+
+A dedicated dataset was prepared for the target environment and used to
+train and compare three neural network architectures: an MLP baseline,
+TinyViT, and MCUNet. MCUNet obtained the best results on the test set, with
+90.00\% accuracy and a Macro F1-score of 0.9027, while using 58,563
+trainable parameters. The selected model was quantized to INT8 and deployed
+on the ESP32-S3-EYE for on-device inference.
+
+The final system performs the classification directly on the edge device.
+When a person or an animal is detected with a confidence of at least 0.85,
+the captured image is transferred to a Raspberry Pi through HTTP and the
+detection event is published through MQTT. Node-RED processes the event and
+sends a Telegram notification containing the captured image and the
+classification result.
+
+The complete prototype was tested end-to-end, from image acquisition and
+local inference to the final remote notification. The project demonstrates
+the integration of TinyML inference on a resource-constrained device with
+standard IoT communication and application-level services.
+
 \end{abstract}
 
 \section{GitHub Repository}
 
 You can find the whole project at \url{https://github.com/smurtas/Smart-Visual-Alarm-System.git}.
 
-\bibliographystyle{alpha}
+\bibliographystyle{apalike}
 \bibliography{sample}
 
 \end{document}

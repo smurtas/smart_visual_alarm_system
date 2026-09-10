@@ -460,7 +460,7 @@ normalized using the same parameters.
 \label{subsec:dataset-split}
 
 After the dataset preparation process, the selected images were divided
-into independent training, validation, and test subsets using a stratified
+into independent training, validation, and test subsets using a class-wise
 70\%--15\%--15\% split. A fixed random seed of 42 was used to make the
 selection and splitting procedure reproducible.
 
@@ -679,59 +679,97 @@ for the final embedded application.
 \subsection{Model Evaluation and Selection}
 \label{subsec:model-evaluation}
 
-After training, the three models were evaluated using the same test set.
-Accuracy was used to measure the percentage of correctly classified images.
-Precision, recall, and F1-score were also considered to analyse the
-performance of the models on the individual classes. The confusion matrix
-was used to identify which classes were more frequently confused.
-
-The Macro F1-score was particularly useful because it gives the same
-importance to each class when calculating the average performance. This is
-relevant in this project because the final dataset is not perfectly balanced,
-with 120 animal images and 140 images for each of the other two classes.
-
-However, classification performance was not the only criterion used to
-select the final model. The classifier had to run directly on the
-ESP32-S3-EYE, so the number of parameters, model size, and computational
-requirements were also important. A model with high accuracy but excessive
-memory or computation requirements would not be suitable for the final
-system.
-
-The MLP was used as a baseline, while TinyViT and MCUNet were tested as
-alternative architectures for image classification. The three models were
-trained and tested using the same dataset organization, allowing their
-results to be compared under the same conditions.
+After training, the three models were evaluated using the same test set of
+60 images. Accuracy, precision, recall, and F1-score were calculated to
+evaluate the classification performance. The confusion matrices were also
+generated to analyse the errors made on the individual classes.
 
 The results of the comparison are summarized in
 Table~\ref{tab:model-comparison}.
 
 \begin{table}[htbp]
 \centering
-\caption{Comparison of the models evaluated in the project.}
+\caption{Comparison of the three models on the test set.}
 \label{tab:model-comparison}
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrrr}
 \hline
 \textbf{Model} &
 \textbf{Accuracy} &
+\textbf{Loss} &
 \textbf{Macro F1} &
 \textbf{Parameters} &
-\textbf{Size} \\
+\textbf{Size (MB)} &
+\textbf{Time (ms)} \\
 \hline
-MLP     & -- & -- & -- & -- \\
-TinyViT & -- & -- & -- & -- \\
-MCUNet  & -- & -- & -- & -- \\
+MLP     & 0.8167 & 0.4410 & 0.8257 & 889,411 & 3.40 & 4.495 \\
+TinyViT & 0.7333 & 0.6422 & 0.7398 & 46,563  & 0.19 & 5.530 \\
+MCUNet  & 0.9000 & 0.3140 & 0.9027 & 58,563  & 0.28 & 5.845 \\
 \hline
 \end{tabular}
 \end{table}
 
-The comparison showed that model selection for a TinyML application requires
-a compromise between classification performance and deployment constraints.
-MCUNet was selected for the final implementation because it provided a good
-balance between these two aspects and was suitable for conversion and
-execution on the ESP32-S3-EYE.
+MCUNet obtained the best overall classification results, with a test
+accuracy of 90.00\% and a Macro F1-score of 0.9027. It also obtained the
+lowest test loss, 0.3140. The results were higher than those obtained by
+the MLP, which reached 81.67\% accuracy, and TinyViT, which reached
+73.33\%.
 
-The selected model was then quantized to INT8 and converted for embedded
-deployment, as described in the following section.
+The class-level results also show differences between the models. MCUNet
+obtained an F1-score of 0.9730 for \texttt{animal}, 0.8571 for
+\texttt{empty}, and 0.8780 for \texttt{person}. The MLP obtained
+respectively 0.9412, 0.7556, and 0.7805, while TinyViT obtained 0.8571,
+0.6957, and 0.6667.
+
+The confusion matrices in Figure~\ref{fig:confusion-matrices} provide a
+more detailed view of the classification errors. MCUNet correctly
+classified all 18 animal images in the test set and showed a more balanced
+performance across the three classes. This is also reflected by its Macro
+F1-score, which was the highest among the evaluated models.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {results/mlp/confusion_matrix_mlp.png}
+        \small (a) MLP
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {results/tinyvit/confusion_matrix_tinyvit.png}
+        \small (b) TinyViT
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {results/mcunet/confusion_matrix_mcunet.png}
+        \small (c) MCUNet
+    \end{minipage}
+
+    \caption{Confusion matrices obtained on the test set for MLP,
+    TinyViT, and MCUNet.}
+    \label{fig:confusion-matrices}
+\end{figure}
+
+The comparison also considered the requirements of the embedded platform.
+The MLP was the fastest model in the experiments, with an average inference
+time of 4.495 ms, but it contained 889,411 trainable parameters and required
+a 3.40 MB checkpoint. TinyViT was the smallest model, with 46,563
+parameters and a checkpoint size of 0.19 MB, but it obtained the lowest
+classification performance.
+
+MCUNet provided the best compromise for the final system. It contained
+58,563 trainable parameters and had a checkpoint size of only 0.28 MB,
+while obtaining the highest accuracy and Macro F1-score. Its measured
+average inference time was 5.845 ms, which remained close to the other two
+models.
+
+For these reasons, MCUNet was selected as the model for deployment on the
+ESP32-S3-EYE. The selected model was subsequently quantized to INT8 and
+converted for execution on the microcontroller.
 
 \section{TinyML Deployment on the ESP32-S3-EYE}
 \label{sec:tinyml-deployment}
@@ -856,12 +894,11 @@ communication and notification pipeline. This allowed the confidence
 threshold to act as an additional filter between the classifier output and
 the actual alarm.
 
-The tests also showed some limitations of the classifier in the real
-environment. In some situations, objects or parts of the background could
-produce an incorrect prediction, especially when the visual characteristics
-of the scene were similar to examples seen during training. This behaviour
-is important because the dataset was relatively small and the camera always
-observed the same environment.
+The integration tests also made it possible to observe the behaviour of the
+classifier under real deployment conditions. Since the training dataset was
+relatively small and most images were acquired from a fixed camera position,
+changes in viewpoint and scene composition could influence the predictions.
+These aspects are discussed further in Section~\ref{sec:limitations}.
 
 Despite these limitations, the integration tests confirmed that the complete
 IoT pipeline could operate from end to end: an image was acquired and
@@ -870,8 +907,80 @@ the image and event were transmitted to the Raspberry Pi, and the final
 notification was delivered through Telegram.
 
 \section{Limitations and Future Improvements}
+\label{sec:limitations}
+
+The main limitations of the current system are related to the dataset and
+to the camera installation. The dataset used for training is relatively
+small, especially when compared with datasets normally used for image
+classification. The \texttt{animal} class was the most difficult to collect,
+since only two usable animal images were obtained directly from the real
+environment and additional examples were required.
+
+Another important aspect is the position of the camera. Most of the images
+were collected from a fixed viewpoint, with the metal bars of the window
+clearly visible in the scene. Since the bars and the background appear in
+many training images, the model may have learned some characteristics of
+this specific environment in addition to the visual features of people and
+animals.
+
+The camera position was also changed when the final TinyML system was
+installed and tested. As a consequence, the images processed during the
+final tests were not always identical in terms of viewpoint and scene
+composition to those used during dataset collection. This may reduce the
+ability of the model to generalize and suggests a possible overfitting to
+the original acquisition environment.
+
+A future version of the project should therefore use a larger and more
+varied dataset. Images could be collected from different camera positions
+and with different backgrounds, distances, lighting conditions, and subject
+positions. In particular, collecting more real images of animals would
+reduce the dependence on additional generated examples.
+
+The current confidence threshold of 0.85 already provides an additional
+filter for low-confidence detections. With a larger test dataset, this
+threshold could also be evaluated more systematically and adjusted according
+to the behaviour of the classifier in the real installation.
+
+These improvements would mainly concern the robustness and generalization
+of the visual classifier. The IoT architecture itself can remain largely
+unchanged, since image acquisition, local inference, HTTP and MQTT
+communication, Node-RED processing, and Telegram notification are already
+integrated in the current prototype.
 
 \section{Conclusion}
+\label{sec:conclusion}
+
+This project presented the development of a complete Smart Visual Alarm
+System combining TinyML and IoT technologies. The objective was to perform
+image classification directly on an ESP32-S3-EYE and use the result to
+activate an alert system only when a relevant event was detected.
+
+The project covered the complete development process, starting from image
+collection and dataset preparation. Three neural network architectures were
+then investigated: an MLP baseline, TinyViT, and MCUNet. Their performance
+and deployment requirements were compared, and MCUNet was selected for the
+final embedded implementation. The model was quantized to INT8 and
+successfully integrated into the ESP32-S3-EYE firmware.
+
+The final prototype performs image acquisition and classification locally.
+When a person or an animal is detected with a confidence of at least 0.85,
+the ESP32-S3-EYE sends the captured image to the Raspberry Pi through HTTP
+and publishes the detection event through MQTT. Node-RED processes the event
+and sends a Telegram notification containing the captured image and the
+classification result.
+
+The final tests confirmed the operation of the complete pipeline, from the
+camera acquisition to the notification received by the user. At the same
+time, the tests showed the importance of collecting a sufficiently large
+and varied dataset for the final installation environment. In particular,
+changes in camera position and background can affect the behaviour of a
+model trained mainly from a fixed viewpoint.
+
+Overall, the project demonstrates the possibility of combining on-device
+machine learning with standard IoT communication technologies on
+resource-constrained hardware. The resulting prototype provides a working
+basis that can be further improved mainly by increasing the quantity and
+variability of the training data.
 
 \begin{abstract}
 ...

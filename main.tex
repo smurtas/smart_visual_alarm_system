@@ -197,6 +197,7 @@ while communication and notification tasks are handled by the Raspberry Pi.
     }
 ]
 
+
 % ------------------------------------------------------------------
 % EDGE LAYER
 % ------------------------------------------------------------------
@@ -284,7 +285,24 @@ application workflow and generates the Telegram notification.}
 \label{fig:system_architecture}
 \end{figure}
 
+
+Figure~\ref{fig:deployment_architecture} provides a complementary deployment
+view of the system, highlighting the distribution of the main hardware and
+software components. In particular, it shows the separation between the
+ESP32-S3-EYE edge device, where TinyML inference and event generation take
+place, and the Raspberry Pi 400 edge gateway, which hosts the HTTP image
+receiver, the Mosquitto MQTT broker, and Node-RED. The final notification is
+delivered to the user's mobile device through the Telegram Bot API.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{resources/schema/prj_schema.png}
+    \caption{Deployment architecture of the Smart Visual Alarm System.}
+    \label{fig:deployment_architecture}
+\end{figure}
+
 \subsection{Hardware Components}
+
 \label{subsec:hardware-components}
 
 The hardware architecture is based on two main devices: the ESP32-S3-EYE
@@ -669,9 +687,6 @@ with its classification performance when comparing the three models.
 \subsection{MCUNet}
 \label{subsec:mcunet}
 
-\subsection{MCUNet}
-\label{subsec:mcunet}
-
 MCUNet~\cite{lin2020mcunet} was the basis for the third model evaluated in
 the project. This architecture was particularly interesting because it was
 designed for machine learning applications running on microcontrollers,
@@ -962,6 +977,54 @@ IoT pipeline could operate from end to end: an image was acquired and
 classified on the ESP32-S3-EYE, the alert condition was evaluated locally,
 the image and event were transmitted to the Raspberry Pi, and the final
 notification was delivered through Telegram.
+
+Examples of notifications generated during the final deployment tests are
+shown in Figure~\ref{fig:telegram_validation}. The examples include both
+successful detections and false positives observed during real operation.
+In particular, the system correctly detected a person under daylight and
+low-light conditions, while some empty scenes generated incorrect
+\texttt{person} or \texttt{animal} alerts. These cases provide a practical
+indication of the classifier behaviour outside the controlled test set and
+motivate the limitations discussed in the following section.
+
+\begin{figure}[htbp]
+    \centering
+
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {resources/telegramValidation/personDetected.png}
+        \small (a) Correct person detection in daylight.
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {resources/telegramValidation/personDetected_night.png}
+        \small (b) Person detection in low-light conditions.
+    \end{minipage}
+
+    \vspace{0.4cm}
+
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {resources/telegramValidation/animalDetected_wrong.png}
+        \small (c) False-positive animal detection.
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {resources/telegramValidation/personoDetected_wrong.png}
+        \small (d) False-positive person detection.
+    \end{minipage}
+
+    \caption{Examples of Telegram notifications generated during real-world
+    system testing. The examples show successful detections under different
+    lighting conditions as well as false positives observed during deployment.}
+    \label{fig:telegram_validation}
+\end{figure}
 
 \section{Limitations and Future Improvements}
 \label{sec:limitations}
